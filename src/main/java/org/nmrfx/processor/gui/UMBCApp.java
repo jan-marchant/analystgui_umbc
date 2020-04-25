@@ -1,5 +1,6 @@
 package org.nmrfx.processor.gui;
 
+import de.codecentric.centerdevice.MenuToolkit;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -8,26 +9,34 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.stage.Stage;
 import org.nmrfx.processor.datasets.Dataset;
+import org.nmrfx.processor.datasets.peaks.PeakLabeller;
+import org.nmrfx.processor.gui.spectra.KeyBindings;
 
 public class UMBCApp extends AnalystApp {
-    static String appName = "NMRFx Analyst (UMBC)";
-    private static MenuBar mainMenuBar = null;
-
     public static RNAManagedListSceneController rnaManListController;
 
     @Override
     public void start(Stage stage) throws Exception {
-        if (mainMenuBar == null) {
-            mainMenuBar = makeMenuBar(appName);
-        }
         super.start(stage);
+        interpreter.exec("import org.nmrfx.processor.gui.LabelDataset as ld");
+    }
+    @Override
+    MenuBar makeMenuBar(String appName) {
+        MenuBar myMenuBar=super.makeMenuBar(appName);
         Menu umbcMenu = new Menu("UMBC");
         MenuItem rnaManListMenuItem = new MenuItem("Show RNA Managed Lists");
         rnaManListMenuItem.setOnAction(e -> showRNAManagedList(e));
         umbcMenu.getItems().addAll(rnaManListMenuItem);
-        mainMenuBar.getMenus().addAll(umbcMenu);
+        myMenuBar.getMenus().addAll(umbcMenu);
+        if (isMac()) {
+            MenuToolkit tk = MenuToolkit.toolkit();
+            tk.setGlobalMenuBar(myMenuBar);
+        }
+        return myMenuBar;
+    }
 
-        interpreter.exec("import org.nmrfx.processor.gui.LabelDataset as ld");
+    public static void main(String[] args) {
+        launch(args);
     }
 
     @FXML

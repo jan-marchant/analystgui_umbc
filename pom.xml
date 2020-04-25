@@ -124,22 +124,23 @@
                 <version>2.2</version>
                 <!-- Required for https://issues.apache.org/jira/browse/MASSEMBLY-289 -->
                 <executions>
+                    <!--
                     <execution>
                         <id>assembly:package</id>
                         <phase>package</phase>
-                        <goals>
+                        <goals>-->
                             <!--
                               Work around for http://jira.codehaus.org/browse/MASSEMBLY-97
                               as the goal should be attached.
                             -->
-                            <goal>single</goal>
+                           <!-- <goal>single</goal>
                         </goals>
                         <configuration>
                             <descriptors>
                                 <descriptor>src/main/assembly/bin.xml</descriptor>
                             </descriptors>
                         </configuration>
-                    </execution>
+                    </execution>-->
                     <execution>
                         <id>assembly:package:noattach</id>
                         <phase>package</phase>
