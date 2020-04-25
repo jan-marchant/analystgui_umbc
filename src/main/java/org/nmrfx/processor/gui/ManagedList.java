@@ -28,8 +28,6 @@ public class ManagedList extends PeakList {
     }
     public ManagedList(LabelDataset labelDataset,PeakList peakList) {
         super(labelDataset.getManagedListName()+"temp",peakList.getNDim());
-        //peakList.copy(labelDataset.getManagedListName()+"temp",true,false,true,false);
-        //might not be necessary as next line should crunch
 
         this.searchDims.addAll(peakList.searchDims);
         this.fileName = peakList.fileName;
