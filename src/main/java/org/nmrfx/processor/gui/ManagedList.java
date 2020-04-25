@@ -3,15 +3,19 @@ package org.nmrfx.processor.gui;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.peaks.*;
 
+import org.nmrfx.processor.gui.spectra.PeakDisplayParameters;
+import org.nmrfx.processor.gui.spectra.PeakListAttributes;
 import org.nmrfx.structure.chemistry.Molecule;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 public class ManagedList extends PeakList {
     private LabelDataset labelDataset;
-    //SNR required for picking peak
+    //SNR required for picking peak - useful when adding breakthrough labeling percentages
     private static double detectionLimit =3;
 
     public ManagedList(LabelDataset labelDataset) {
@@ -45,32 +49,27 @@ public class ManagedList extends PeakList {
             Peak peak = peakList.peaks().get(i);
             ManagedPeak newPeak = new ManagedPeak(this,peak);
             peaks().add(newPeak);
-            clearIndex();
-
-            //peak.copyLabels(newPeak);
-
-            /*for (int j = 0; j < peak.peakDims.length; j++) {
-                PeakDim peakDim1 = peak.peakDims[j];
-                PeakDim peakDim2 = newPeak.peakDims[j];
-                PeakList.linkPeakDims(peakDim1, peakDim2);
-            }*/
         }
-        //this.idLast = peakList.idLast;
+        this.idLast = peakList.idLast;
         this.reIndex();
 
         //update charts which match
-        List<String> peakListList = new ArrayList<>();
-        peakListList.add(this.getName());
+        List<PolyChart> activeChartList = new ArrayList<>();
 
-        FXMLController.getActiveController().charts.stream().forEach(chart -> {
-            chart.peakListAttributesList.forEach((peakListAttr) -> {
+        for (PolyChart chart : PolyChart.CHARTS) {
+            chart.getPeakListAttributes().forEach((peakListAttr) -> {
                 if (peakListAttr.getPeakList()==peakList) {
-                    peakListAttr.setPeakList(this);
+                    activeChartList.add(chart);
                 }
             });
-        });
+        }
+
         peakList.remove();
         this.setName(labelDataset.getManagedListName());
+        for (PolyChart chart : activeChartList) {
+            chart.setupPeakListAttributes(this);
+            //peakAttr.setLabelType(PeakDisplayParameters.LabelTypes.SglResidue);
+        }
         this.labelDataset=labelDataset;
         this.setSlideable(true);
     }
@@ -79,10 +78,6 @@ public class ManagedList extends PeakList {
         //will this need to be a ManagedPeak class to keep proper track of modifications?
         //fixme: what about when getNewPeak called? need to be careful
         //TODO: consider behavior when Resonances are SimpleResonance instead of AtomResonance
-        //TODO: Set slide condition etc.
-        //TODO: Set slideable etc.
-        //TODO: Add diagonal peak - as a linked peak? Gives opportunity for not adding if
-        // later evolution of labelstring allows / suggests
         //fixme: Might be better to immediately pick master peak with a call to add peak - only adding exactly as picked, then amend this logic to pick on all non master lists
         // including diagonals, when they match
 
@@ -133,10 +128,10 @@ public class ManagedList extends PeakList {
                         //break;
                     }
             }
+            //Not going to use the originally picked peak
+            this.idLast--;
             ManagedPeak manPeak=new ManagedPeak(this,newPeak);
-
             peaks().add(manPeak);
-            clearIndex();
             //add diagonal
             Boolean diag=false;
             ManagedPeak dpeak = new ManagedPeak(this, nDim);
@@ -150,8 +145,11 @@ public class ManagedList extends PeakList {
                 dpeak.getPeakDim(0).setChemShiftValue(manPeak.getPeakDim(1).getChemShiftValue());
                 dpeak.getPeakDim(1).setResonance(manPeak.getPeakDim(0).getResonance());
                 dpeak.getPeakDim(0).setResonance(manPeak.getPeakDim(1).getResonance());
+                manPeak.getPeakDim(0).getResonance().add(dpeak.getPeakDim(1));
+                manPeak.getPeakDim(1).getResonance().add(dpeak.getPeakDim(0));
+                dpeak.getPeakDim(1).setFrozen(manPeak.getPeakDim(0).isFrozen());
+                dpeak.getPeakDim(0).setFrozen(manPeak.getPeakDim(1).isFrozen());
                 peaks().add(dpeak);
-                clearIndex();
                 diag=true;
             }
             //copy to other appropriate lists - use relative weights to set peak size
@@ -172,7 +170,11 @@ public class ManagedList extends PeakList {
                     }
                 }
             }
-            //TODO: update any active canvases
+            this.reIndex();
+            for (PolyChart chart : PolyChart.CHARTS) {
+                chart.drawPeakLists(true);
+                //chart.refresh();
+            }
             return manPeak;
          }
         return null;
@@ -204,13 +206,14 @@ public class ManagedList extends PeakList {
             newManPeak.setIntensity(new_intensity);
             //TODO: change bounds of newManPeak to reflect new intensity
             peaks().add(newManPeak);
-            clearIndex();
+            this.reIndex();
             //ensure resonances match
             //scale intensity
         }
     }
     public void deleteMatchingPeaks(Peak peak) {
         for (Peak matchingPeak : getMatchingPeaks(peak,false)) {
+            System.out.println("Trying to remove"+matchingPeak.getName());
             for (PeakDim peakDim : matchingPeak.peakDims) {
                 peakDim.remove();
                 if (peakDim.hasMultiplet()) {
@@ -224,24 +227,27 @@ public class ManagedList extends PeakList {
         reIndex();
     }
 
-    public List<Peak> getMatchingPeaks(Peak searchPeak,Boolean includeSelf) {
-        List<Peak> matchingPeaks;
-        matchingPeaks = new ArrayList<>();
-        List<Peak> matchOneDimPeaks;
-        matchOneDimPeaks = new ArrayList<>();
-        List<PeakDim> seenPeakDims;
-        seenPeakDims = new ArrayList<>();
+    public Set<Peak> getMatchingPeaks(Peak searchPeak, Boolean includeSelf) {
+        Set<Peak> matchingPeaks;
+        matchingPeaks = new HashSet<>();
+        Set<Peak> matchOneDimPeaks;
+        matchOneDimPeaks = new HashSet<>();
+        Set<PeakDim> seenPeakDims;
+        seenPeakDims = new HashSet<>();
 
         Boolean first=true;
         for (PeakDim peakDim : searchPeak.getPeakDims()) {
             for (PeakDim linkedPeakDim : peakDim.getLinkedPeakDims()) {
-                //Only consider each peakDim once.
-                // If a peak has already matched this peakDim, don't include.
-                // Otherwise issues with diagonal peak matching.
-                // This is a bit naff. fixme
-                if (!seenPeakDims.contains(linkedPeakDim) && !matchOneDimPeaks.contains(linkedPeakDim.getPeak())) {
-                    matchOneDimPeaks.add(linkedPeakDim.getPeak());
-                    seenPeakDims.add(linkedPeakDim);
+                //only delete matching peaks from this list
+                if (linkedPeakDim.getPeakList()==this) {
+                    //Only consider each peakDim once.
+                    // If a peak has already matched this peakDim, don't include.
+                    // Otherwise issues with diagonal peak matching.
+                    // This is a bit naff. fixme
+                    if (!seenPeakDims.contains(linkedPeakDim) && !matchOneDimPeaks.contains(linkedPeakDim.getPeak())) {
+                        matchOneDimPeaks.add(linkedPeakDim.getPeak());
+                        seenPeakDims.add(linkedPeakDim);
+                    }
                 }
             }
             if (first) {

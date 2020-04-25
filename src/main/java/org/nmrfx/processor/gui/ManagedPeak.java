@@ -9,7 +9,7 @@ public class ManagedPeak extends Peak {
 
     public ManagedPeak(PeakList peakList, int nDim) {
         super(peakList, nDim);
-        this.initPeakDimContribs();
+        //this.initPeakDimContribs();
     }
 
     public ManagedPeak(PeakList peakList,Peak peak) {
@@ -17,12 +17,14 @@ public class ManagedPeak extends Peak {
         //Eventually needs improvement for situations where we want to add higher dim peak
         //from lower dim. E.g. 2D - 3D NOESY.
         super(peakList,peak.getPeakDims().length);
-        this.initPeakDimContribs();
+        //this.initPeakDimContribs();
         peak.copyTo(this);
         for (int i = 0; i < peak.getPeakDims().length; i++) {
             this.getPeakDim(i).setResonance(peak.getPeakDim(i).getResonance());
             //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
             peak.getPeakDim(i).getResonance().add(this.getPeakDim(i));
+            //peakDims copy doesn't include frozen - fixme?
+            this.getPeakDim(i).setFrozen(peak.getPeakDim(i).isFrozen());
         }
     }
 
@@ -49,10 +51,10 @@ public class ManagedPeak extends Peak {
 
             peakList.reNumber();
             //attempt to update
-            FXMLController.getActiveController().charts.stream().forEach(chart -> {
-                chart.clearPeakPaths();
-                chart.refresh();
-            });
+            for (PolyChart chart : PolyChart.CHARTS) {
+                chart.drawPeakLists(true);
+                //chart.refresh();
+            }
         }
     }
 }
