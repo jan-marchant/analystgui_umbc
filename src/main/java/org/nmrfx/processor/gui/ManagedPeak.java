@@ -23,8 +23,6 @@ public class ManagedPeak extends Peak {
             this.getPeakDim(i).setResonance(peak.getPeakDim(i).getResonance());
             //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
             peak.getPeakDim(i).getResonance().add(this.getPeakDim(i));
-            //peakDims copy doesn't include frozen - fixme?
-            this.getPeakDim(i).setFrozen(peak.getPeakDim(i).isFrozen());
         }
     }
 

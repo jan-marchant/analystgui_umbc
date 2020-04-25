@@ -131,6 +131,7 @@ public class ManagedList extends PeakList {
             //Not going to use the originally picked peak
             this.idLast--;
             ManagedPeak manPeak=new ManagedPeak(this,newPeak);
+
             peaks().add(manPeak);
             //add diagonal
             Boolean diag=false;
@@ -147,8 +148,6 @@ public class ManagedList extends PeakList {
                 dpeak.getPeakDim(0).setResonance(manPeak.getPeakDim(1).getResonance());
                 manPeak.getPeakDim(0).getResonance().add(dpeak.getPeakDim(1));
                 manPeak.getPeakDim(1).getResonance().add(dpeak.getPeakDim(0));
-                dpeak.getPeakDim(1).setFrozen(manPeak.getPeakDim(0).isFrozen());
-                dpeak.getPeakDim(0).setFrozen(manPeak.getPeakDim(1).isFrozen());
                 peaks().add(dpeak);
                 diag=true;
             }
@@ -171,6 +170,9 @@ public class ManagedList extends PeakList {
                 }
             }
             this.reIndex();
+            for (int i=0;i<newPeak.getPeakDims().length;i++) {
+                manPeak.getPeakDim(i).setFrozen(newPeak.getPeakDim(i).isFrozen());
+            }
             for (PolyChart chart : PolyChart.CHARTS) {
                 chart.drawPeakLists(true);
                 //chart.refresh();
