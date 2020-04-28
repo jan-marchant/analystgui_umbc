@@ -12,6 +12,7 @@ import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.DatasetListener;
 import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.processor.datasets.peaks.*;
+import org.nmrfx.project.Project;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.Molecule;
 import org.nmrfx.structure.chemistry.RNALabels;
@@ -37,6 +38,7 @@ public class LabelDataset implements DatasetListener {
     private SimpleBooleanProperty active;
 
     private Dataset dataset;
+    private Project project;
 
     //need to clear the map when the labelString changes. Implement a listener? Assuming it always changes through set then no need
     //What about if dataset property is updated directly? This will not get the update. Could lead to inconsistencies.
@@ -85,7 +87,7 @@ public class LabelDataset implements DatasetListener {
     public static ManagedList getMasterList() {
         ManagedList masterList=master.managedList;
         if (masterList==null) {
-            PeakList.peakListTable.removeListener(master.peakmapChangeListener);
+            PeakList.peakListTable().removeListener(master.peakmapChangeListener);
             //TODO: any need to consider more than 5 dims?
             masterList=new ManagedList(getMaster(),5);
             master.managedList=masterList;
@@ -164,18 +166,20 @@ public class LabelDataset implements DatasetListener {
         this.managedList=null;
         this.labelScheme = new SimpleStringProperty("");
         this.condition = new SimpleStringProperty("master_managed");
+        this.project=Project.getActive();
 
         peakmapChangeListener = (MapChangeListener.Change<? extends String, ? extends PeakList> change) -> {
             stealPeaklist();
         };
 
-        PeakList.peakListTable.addListener(peakmapChangeListener);
+        PeakList.peakListTable().addListener(peakmapChangeListener);
 
         //labelDatasetTable.add(this);
     }
 
 
     public LabelDataset (Dataset dataset) {
+        this.project=Project.getActive();
         this.dataset=dataset;
         this.name=new SimpleStringProperty(dataset.getName());
         //on creation, active is false, on load active is true. Use as flag for updating peak lists? i.e. if changed from true to false, delete peaklist. if from false to true, create and update peaklist (as managedList).
@@ -205,7 +209,7 @@ public class LabelDataset implements DatasetListener {
             stealPeaklist();
         };
 
-        PeakList.peakListTable.addListener(peakmapChangeListener);
+        PeakList.peakListTable().addListener(peakmapChangeListener);
 
 
         labelDatasetTable.add(this);
@@ -214,7 +218,7 @@ public class LabelDataset implements DatasetListener {
     private void stealPeaklist () {
         PeakList pl=PeakList.get(this.getManagedListName());
         if (pl!=null) {
-            PeakList.peakListTable.removeListener(peakmapChangeListener);
+            PeakList.peakListTable().removeListener(peakmapChangeListener);
             //fixme need to wait for peaklist to be fully read before stealing it
             Platform.runLater(() -> {
                 managedList = new ManagedList(this, pl);
@@ -276,7 +280,7 @@ public class LabelDataset implements DatasetListener {
             //user initiated peak par writing without then saving.
             //TODO: consider whether project should be saved when user initiates a par write? It can lead
             // to issues with referencing etc. as well as this problem otherwise
-            PeakList.peakListTable.removeListener(peakmapChangeListener);
+            PeakList.peakListTable().removeListener(peakmapChangeListener);
             managedList=new ManagedList(this);
             initializeList();
             updatePeaks();
@@ -388,7 +392,7 @@ public class LabelDataset implements DatasetListener {
             this.active.set(true);
             dataset.addProperty("active", Boolean.toString(true));
             dataset.writeParFile();
-            PeakList.peakListTable.removeListener(peakmapChangeListener);
+            PeakList.peakListTable().removeListener(peakmapChangeListener);
             managedList=new ManagedList(this);
             this.initializeList();
             this.updatePeaks();
