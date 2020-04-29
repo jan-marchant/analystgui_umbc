@@ -11,7 +11,7 @@
 
     <groupId>org.nmrfx</groupId>
     <artifactId>analystgui_umbc</artifactId>
-    <version>69</version>
+    <version>multiproj</version>
     <name>analystgui_umbc</name>
     <packaging>jar</packaging>
 
@@ -28,31 +28,31 @@
         <dependency>
             <groupId>org.nmrfx</groupId>
             <artifactId>processor</artifactId>
-            <version>69</version>
+            <version>multiproj</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.nmrfx</groupId>
             <artifactId>processorgui</artifactId>
-            <version>69</version>
+            <version>multiproj</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.nmrfx</groupId>
             <artifactId>analyst</artifactId>
-            <version>69</version>
+            <version>multiproj</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.nmrfx</groupId>
             <artifactId>structure</artifactId>
-            <version>69</version>
+            <version>multiproj</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.nmrfx</groupId>
             <artifactId>analystgui</artifactId>
-            <version>69</version>
+            <version>multiproj</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

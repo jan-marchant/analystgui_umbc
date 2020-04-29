@@ -422,7 +422,9 @@ public class LabelDataset implements DatasetListener {
         if (atom!=null) {
             Boolean l_active = atomActive.get(atom);
             if (l_active==null) {
-                l_active = RNALabels.isAtomInLabelString(atom, this.labelScheme.get());
+                //not in master
+                //l_active = RNALabels.isAtomInLabelString(atom, this.labelScheme.get());
+                l_active=false;
                 atomActive.put(atom, l_active);
             }
             return l_active;
@@ -448,7 +450,8 @@ public class LabelDataset implements DatasetListener {
         if (atom!=null) {
             Integer percent = atomPercent.get(atom);
             if (percent==null) {
-                percent = RNALabels.atomPercentLabelString(atom, this.labelScheme.get());
+                //percent = RNALabels.atomPercentLabelString(atom, this.labelScheme.get());
+                percent=100;
                 if (percent>100) {
                     System.out.println("Check labeling string - "+atom.getName()+" is apparently "+percent+"% labeled");
                     percent=100;
@@ -501,11 +504,12 @@ public class LabelDataset implements DatasetListener {
                 }
         );
         labelDatasetTable.remove(LabelDataset.this);
-        dataset.removeProperty("active");
-        dataset.removeProperty("labelScheme");
-        dataset.removeProperty("managedList");
-        dataset.removeProperty("condition");
-        dataset.writeParFile();
+        //Not in master
+        // dataset.removeProperty("active");
+        //dataset.removeProperty("labelScheme");
+        //dataset.removeProperty("managedList");
+        //dataset.removeProperty("condition");
+        //dataset.writeParFile();
         if (labelDatasetTable.isEmpty()) {
             ManagedList.remove(LabelDataset.getMaster().getManagedListName());
         }
