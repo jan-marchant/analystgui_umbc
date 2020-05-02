@@ -3,6 +3,8 @@ package org.nmrfx.processor.gui;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.peaks.*;
 
+import org.nmrfx.processor.gui.spectra.PeakDisplayParameters;
+import org.nmrfx.processor.gui.spectra.PeakListAttributes;
 import org.nmrfx.structure.chemistry.Molecule;
 
 import java.util.ArrayList;
@@ -188,7 +190,7 @@ public class ManagedList extends PeakList {
         //this doesn't account for spin diffusion - only for "breakthrough" peaks
         float new_intensity=new_percent*intensity/percent;
         Boolean active=false;
-        Dataset ds= Dataset.getDataset(fileName);
+        Dataset ds=Dataset.getDataset(fileName);
         if (ds!=null) {
             Double noise=ds.guessNoiseLevel();
             if (noise==null) {

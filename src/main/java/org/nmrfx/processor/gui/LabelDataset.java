@@ -12,7 +12,6 @@ import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.DatasetListener;
 import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.processor.datasets.peaks.*;
-import org.nmrfx.project.Project;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.Molecule;
 import org.nmrfx.structure.chemistry.RNALabels;
@@ -38,12 +37,11 @@ public class LabelDataset implements DatasetListener {
     private SimpleBooleanProperty active;
 
     private Dataset dataset;
-    private Project project;
 
     //need to clear the map when the labelString changes. Implement a listener? Assuming it always changes through set then no need
     //What about if dataset property is updated directly? This will not get the update. Could lead to inconsistencies.
     private HashMap<Atom,Boolean> atomActive;
-    private HashMap<Atom,Integer> atomPercent;
+    private HashMap<Atom,Float> atomPercent;
     /**
     * Maybe should set up another type which extends PeakList and implements new functionality.
     * will need to copy the loaded peaklist into this new type with same name, delete original
@@ -106,7 +104,7 @@ public class LabelDataset implements DatasetListener {
             return false;
         }
         @Override
-        public Integer getAtomPercent (Atom atom) {
+        public float getAtomPercent (Atom atom) {
             if (atom!=null) {
                 return 100;
             } else {
@@ -166,7 +164,6 @@ public class LabelDataset implements DatasetListener {
         this.managedList=null;
         this.labelScheme = new SimpleStringProperty("");
         this.condition = new SimpleStringProperty("master_managed");
-        this.project=Project.getActive();
 
         peakmapChangeListener = (MapChangeListener.Change<? extends String, ? extends PeakList> change) -> {
             stealPeaklist();
@@ -179,7 +176,6 @@ public class LabelDataset implements DatasetListener {
 
 
     public LabelDataset (Dataset dataset) {
-        this.project=Project.getActive();
         this.dataset=dataset;
         this.name=new SimpleStringProperty(dataset.getName());
         //on creation, active is false, on load active is true. Use as flag for updating peak lists? i.e. if changed from true to false, delete peaklist. if from false to true, create and update peaklist (as managedList).
@@ -422,9 +418,7 @@ public class LabelDataset implements DatasetListener {
         if (atom!=null) {
             Boolean l_active = atomActive.get(atom);
             if (l_active==null) {
-                //not in master
-                //l_active = RNALabels.isAtomInLabelString(atom, this.labelScheme.get());
-                l_active=false;
+                l_active = RNALabels.isAtomInLabelString(atom, this.labelScheme.get());
                 atomActive.put(atom, l_active);
             }
             return l_active;
@@ -446,12 +440,13 @@ public class LabelDataset implements DatasetListener {
         return isAtomActive(atom);
     }
 
-    public Integer getAtomPercent (Atom atom) {
+    public float getAtomPercent (Atom atom) {
         if (atom!=null) {
-            Integer percent = atomPercent.get(atom);
-            if (percent==null) {
-                //percent = RNALabels.atomPercentLabelString(atom, this.labelScheme.get());
-                percent=100;
+            float percent;
+            try {
+                percent = atomPercent.get(atom);
+            } catch (Exception e) {
+                percent = RNALabels.atomPercentLabelString(atom, this.labelScheme.get());
                 if (percent>100) {
                     System.out.println("Check labeling string - "+atom.getName()+" is apparently "+percent+"% labeled");
                     percent=100;
@@ -465,7 +460,7 @@ public class LabelDataset implements DatasetListener {
         }
     }
 
-    public Integer getAtomPercent (String atomString) {
+    public float getAtomPercent (String atomString) {
         //Need error handling for atom doesn't exist I guess
         Atom atom;
         try {
@@ -504,12 +499,11 @@ public class LabelDataset implements DatasetListener {
                 }
         );
         labelDatasetTable.remove(LabelDataset.this);
-        //Not in master
-        // dataset.removeProperty("active");
-        //dataset.removeProperty("labelScheme");
-        //dataset.removeProperty("managedList");
-        //dataset.removeProperty("condition");
-        //dataset.writeParFile();
+        dataset.removeProperty("active");
+        dataset.removeProperty("labelScheme");
+        dataset.removeProperty("managedList");
+        dataset.removeProperty("condition");
+        dataset.writeParFile();
         if (labelDatasetTable.isEmpty()) {
             ManagedList.remove(LabelDataset.getMaster().getManagedListName());
         }
