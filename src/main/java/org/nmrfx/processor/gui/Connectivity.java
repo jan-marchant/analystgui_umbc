@@ -1,6 +1,7 @@
 package org.nmrfx.processor.gui;
 
 import org.apache.commons.lang3.StringUtils;
+import org.nmrfx.processor.operations.Exp;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.*;
 import org.nmrfx.structure.chemistry.constraints.Noe;
@@ -9,28 +10,62 @@ import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import java.util.*;
 
 public class Connectivity {
-    private ExpDim expDim1;
-    private ExpDim expDim2;
     public enum TYPE {
         NOE,
         J,
         TOCSY,
-        HMBC,
         HBOND;
     }
+    public enum NOETYPE {
+        PEAKS("From peaks"),
+        ATTRIBUTES("Attributes-based"),
+        STRUCTURE("From structure");
+
+        private String label;
+
+        NOETYPE(String label) {
+            this.label = label;
+        }
+        public String toString() {
+            return label;
+        }
+    }
+    //this doesn't belong here
+    private NoeSet noeSet;
     public TYPE type;
     /**Rough idea at the moment - best not to expose to the world, can set up lots of prototype experiments instead
      **/
     private int minTransfers;
     private int maxTransfers;
-    private String nBonds;
-    private NoeSet noeSet;
+    private String numBonds;
     private UmbcProject project;
     //private MoleculeCouplingList moleculeCouplingList;
 
-    public Connectivity(UmbcProject project) {
+    public Connectivity(UmbcProject project, int minTransfers, int maxTransfers) {
         this.project=project;
+        this.type=TYPE.TOCSY;
+        this.minTransfers=minTransfers;
+        this.maxTransfers=maxTransfers;
     }
+    public Connectivity(UmbcProject project,String numBonds) {
+        this.project=project;
+        this.type=TYPE.J;
+        this.numBonds=numBonds;
+    }
+    public Connectivity(UmbcProject project,Connectivity.TYPE type) {
+        this.project=project;
+        this.type=type;
+        switch (type) {
+            case J:
+                numBonds="1";
+                break;
+            case TOCSY:
+                minTransfers=1;
+                maxTransfers=1;
+                break;
+        }
+    }
+
     public double getTransfers (List<Atom> atoms1,List<Atom> atoms2) {
         /**
          * Does Atom1 have a valid connection to Atom2 (Fn - Fn+1)?
@@ -50,8 +85,6 @@ public class Connectivity {
         } else if (type==TYPE.HBOND) {
 
         } else if (type==TYPE.TOCSY) {
-
-        } else if (type==TYPE.HMBC) {
 
         }
         return intensity;
@@ -87,7 +120,7 @@ public class Connectivity {
         project.getMoleculeCouplingList().checkMol();
         HashMap<Atom, Set<Atom>> connections = new HashMap<>();
 
-        String[] bondsString = StringUtils.split(nBonds, ",");
+        String[] bondsString = StringUtils.split(numBonds, ",");
         List<Integer> nBondsList = new ArrayList<Integer>();
         for (String number : bondsString) {
             nBondsList.add(Integer.parseInt(number.trim()));
@@ -112,7 +145,7 @@ public class Connectivity {
 
         Set<Atom> connected = new HashSet<>();
         for (Atom atom : atoms1) {
-            for (int transfers=1;transfers<=maxTransfers;transfers++) {
+            for (int transfers = minTransfers; transfers<= maxTransfers; transfers++) {
                 //for (LinkedList<Atom> transferPath : project.getMoleculeCouplingList().getTocsyPaths(atom, transfers,3)) {
                 //    connected.add(transferPath.getLast());
                 //}
@@ -123,5 +156,21 @@ public class Connectivity {
             connected.clear();
         }
         return connections;
+    }
+
+    public TYPE getType() {
+        return type;
+    }
+
+    public int getMinTransfers() {
+        return minTransfers;
+    }
+
+    public int getMaxTransfers() {
+        return maxTransfers;
+    }
+
+    public String getNumBonds() {
+        return numBonds;
     }
 }

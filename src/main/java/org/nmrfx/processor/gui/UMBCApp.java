@@ -16,6 +16,8 @@ import org.nmrfx.project.UmbcProject;
 public class UMBCApp extends AnalystApp {
     public static RNAManagedListSceneController rnaManListController;
     public static AcquisitionListSceneController acquisitionListController;
+    public static SampleListSceneController sampleListController;
+    public static ExperimentListSceneController experimentListController;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -27,10 +29,15 @@ public class UMBCApp extends AnalystApp {
         MenuBar myMenuBar=super.makeMenuBar(appName);
         Menu umbcMenu = new Menu("UMBC");
         MenuItem rnaManListMenuItem = new MenuItem("Show RNA Managed Lists");
-        MenuItem acquisitionListMenuItem = new MenuItem("Show Acquisition Details");
         rnaManListMenuItem.setOnAction(e -> showRNAManagedList(e));
+        MenuItem acquisitionListMenuItem = new MenuItem("Show Acquisition Details");
         acquisitionListMenuItem.setOnAction(e -> showAcquisitionList(e));
-        umbcMenu.getItems().addAll(rnaManListMenuItem,acquisitionListMenuItem);
+        MenuItem sampleListMenuItem = new MenuItem("Show Sample Details");
+        sampleListMenuItem.setOnAction(e -> showSampleList(e));
+        MenuItem experimentListMenuItem = new MenuItem("Show Experiment Details");
+        experimentListMenuItem.setOnAction(e -> showExperimentList(e));
+
+        umbcMenu.getItems().addAll(rnaManListMenuItem,acquisitionListMenuItem,sampleListMenuItem,experimentListMenuItem);
         myMenuBar.getMenus().addAll(umbcMenu);
         if (isMac()) {
             MenuToolkit tk = MenuToolkit.toolkit();
@@ -68,6 +75,34 @@ public class UMBCApp extends AnalystApp {
             acquisitionListController.getStage().toFront();
         } else {
             System.out.println("Couldn't make acquisitionListController ");
+        }
+    }
+
+    @FXML
+    private void showExperimentList(ActionEvent event) {
+        if (experimentListController == null) {
+            experimentListController = ExperimentListSceneController.create();
+            experimentListController.setExperimentList(UmbcProject.experimentList);
+        }
+        if (experimentListController != null) {
+            experimentListController.getStage().show();
+            experimentListController.getStage().toFront();
+        } else {
+            System.out.println("Couldn't make experimentListController ");
+        }
+    }
+
+    @FXML
+    private void showSampleList(ActionEvent event) {
+        if (sampleListController == null) {
+            sampleListController = SampleListSceneController.create();
+            sampleListController.setSampleList(UmbcProject.gSampleList);
+        }
+        if (sampleListController != null) {
+            sampleListController.getStage().show();
+            sampleListController.getStage().toFront();
+        } else {
+            System.out.println("Couldn't make sampleListController ");
         }
     }
 

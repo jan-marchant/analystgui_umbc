@@ -12,6 +12,7 @@ import javafx.collections.ObservableList;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.project.Project;
 import org.nmrfx.project.UmbcProject;
+import org.nmrfx.utils.GUIUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +21,7 @@ public class Acquisition {
 
     private UmbcProject project;
     private ObservableList<ManagedList> managedListsList = FXCollections.observableArrayList();
-    private ObjectProperty<Dataset> dataset = new SimpleObjectProperty<Dataset>();
+    private ObjectProperty<Dataset> dataset = new SimpleObjectProperty<>();
     private ObjectProperty<Experiment> experiment = new SimpleObjectProperty<>();
     private ObjectProperty<Sample> sample = new SimpleObjectProperty<>();
     private ListProperty<ManagedList> managedLists = new SimpleListProperty<>(managedListsList);
@@ -29,6 +30,35 @@ public class Acquisition {
     public Acquisition() {
         project=UmbcProject.getActive();
         project.acquisitionTable.add(this);
+    }
+
+    public void addNewManagedList() {
+        if (getDataset()==null || getSample()==null || getExperiment()==null) {
+            GUIUtils.warn("Cannot add list","You must define all acquisition parameters before adding any lists.");
+        }
+        ManagedListSetup managedListSetup = new ManagedListSetup(this);
+
+    }
+
+    public void deleteManagedList(ManagedList managedList,boolean prompt) {
+        boolean delete=true;
+        if (prompt) {
+            delete = GUIUtils.affirm("Are you sure? This cannot be undone.");
+        }
+        if (delete) {
+            getManagedLists().remove(managedList);
+            managedList.remove();
+        }
+    }
+
+    public void remove(boolean prompt) {
+        boolean delete=true;
+        if (prompt) {
+            delete = GUIUtils.affirm("Are you sure you want to delete? This cannot be undone.");
+        }
+        if (delete) {
+            project.acquisitionTable.remove(this);
+        }
     }
 
     private double getDatasetSensitivity () {

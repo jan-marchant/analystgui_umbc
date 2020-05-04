@@ -6,6 +6,7 @@ import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.processor.gui.spectra.PeakDisplayParameters;
 import org.nmrfx.processor.gui.spectra.PeakListAttributes;
 import org.nmrfx.structure.chemistry.Molecule;
+import org.nmrfx.utils.GUIUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -17,6 +18,10 @@ public class ManagedList extends PeakList {
     private LabelDataset labelDataset;
     //SNR required for picking peak - useful when adding breakthrough labeling percentages
     private static double detectionLimit =3;
+
+    public ManagedList(Acquisition acquisition, String name,int ppmSet,int rPpmset,Connectivity.NOETYPE noeType, String nBonds, String minTransfers, String maxTransfers) {
+        super(name,acquisition.getDataset().getNDim());
+    }
 
     public ManagedList(LabelDataset labelDataset) {
         super(labelDataset.getManagedListName(),labelDataset.getDataset().getNDim());
@@ -73,6 +78,7 @@ public class ManagedList extends PeakList {
         this.labelDataset=labelDataset;
         this.setSlideable(true);
     }
+
     @Override
     public ManagedPeak addPeak(Peak newPeak) {
         //will this need to be a ManagedPeak class to keep proper track of modifications?
@@ -265,5 +271,13 @@ public class ManagedList extends PeakList {
             matchingPeaks.remove(searchPeak);
         }
         return matchingPeaks;
+    }
+
+    public ArrayList<String> getDetailText() {
+        ArrayList<String> detailArray=new ArrayList<>();
+        detailArray.add("PPM Set: ");
+        detailArray.add("NOE Set: ");
+        detailArray.add("transfers");
+        return detailArray;
     }
 }

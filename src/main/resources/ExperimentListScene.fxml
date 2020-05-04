@@ -3,7 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane prefHeight="350.0" prefWidth="700" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.nmrfx.processor.gui.AcquisitionListSceneController">
+<BorderPane prefHeight="350.0" prefWidth="700" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.nmrfx.processor.gui.ExperimentListSceneController">
     <center>
         <TableView fx:id="tableView">
             <columns>
@@ -13,7 +13,7 @@
    <bottom>
       <ButtonBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
         <buttons>
-            <Button mnemonicParsing="false" text="Add New" fx:id="addButton"/>
+            <Button mnemonicParsing="false" text="Setup New" fx:id="addButton"/>
         </buttons>
       </ButtonBar>
    </bottom>

@@ -48,6 +48,7 @@ class ViewableComboBoxTableCell<S,T> extends TableCell<Acquisition,T> {
         if (empty) {
             setGraphic(null);
         } else {
+            Acquisition acq=(Acquisition) getTableRow().getItem();
             combo.setValue(t);
             setGraphic(combo);
         }

@@ -16,10 +16,27 @@ public class ExpDim {
     private List<Atom> activeAtoms;
     private String pattern;
     private Boolean observed;
+    private ExpDim nextExpDim;
+    private Connectivity nextCon;
 
-    public ExpDim() {
-
+    public ExpDim(Boolean observed) {
+        this.observed=observed;
     }
 
+    public Boolean isObserved() {
+        return observed;
+    }
 
+    public ExpDim getNextExpDim() {
+        return nextExpDim;
+    }
+
+    public Connectivity getNextCon() {
+        return nextCon;
+    }
+
+    public void setNext(Connectivity nextCon,ExpDim nextExpDim) {
+        this.nextCon = nextCon;
+        this.nextExpDim=nextExpDim;
+    }
 }

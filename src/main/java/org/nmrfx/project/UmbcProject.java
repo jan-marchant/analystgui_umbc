@@ -19,6 +19,7 @@ public class UmbcProject extends GUIStructureProject {
     private MoleculeCouplingList moleculeCouplingList;
     public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
     public ObservableList<Dataset> obsDatasetList = FXCollections.observableArrayList();
+    public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
 
     private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
             obsDatasetList.clear();
@@ -41,6 +42,7 @@ public class UmbcProject extends GUIStructureProject {
         datasetList.addListener(datasetChangeListener);
         Bindings.bindContent(gAcquisitionTable,acquisitionTable);
         Bindings.bindContent(gObsDatasetList,obsDatasetList);
+        Bindings.bindContent(gSampleList,sampleList);
         //acquisitionTable.addListener(acquisitionChangeListener);
     }
 
@@ -65,11 +67,13 @@ public class UmbcProject extends GUIStructureProject {
         if (Project.activeProject instanceof UmbcProject) {
             Bindings.unbindContent(gAcquisitionTable, UmbcProject.getActive().acquisitionTable);
             Bindings.unbindContent(gObsDatasetList, UmbcProject.getActive().obsDatasetList);
+            Bindings.unbindContent(gSampleList, UmbcProject.getActive().sampleList);
         }
         super.setActive();
         if (acquisitionTable!=null) {
             Bindings.bindContent(gAcquisitionTable,acquisitionTable);
             Bindings.bindContent(gObsDatasetList,obsDatasetList);
+            Bindings.bindContent(gSampleList,sampleList);
         }
     }
 
