@@ -35,6 +35,7 @@ import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
@@ -183,8 +184,21 @@ public class AcquisitionListSceneController implements Initializable {
         experimentCol.setPrefWidth(150);
         //experimentCol.setEditable(false);
 
-        TableColumn<Acquisition, ObservableList> listCol = new TableColumn<>("Associated lists");
+        TableColumn<Acquisition, ObservableList<ManagedList>> listCol = new TableColumn<>("Associated lists");
         listCol.setCellValueFactory(new PropertyValueFactory<>("managedLists"));
+        listCol.setCellFactory(col -> new TableCell<Acquisition, ObservableList<ManagedList>>() {
+            @Override
+            public void updateItem(ObservableList<ManagedList> managedLists, boolean empty) {
+                super.updateItem(managedLists, empty);
+                if (empty) {
+                    setText(null);
+                } else {
+                    setText(managedLists.stream().map(ManagedList::getName)
+                            .collect(Collectors.joining(", ")));
+                }
+            }
+        });
+
         /*listCol.setCellFactory(tc -> {
             TableCell<Acquisition, ObservableList> cell = new TableCell<Acquisition, ObservableList>() {
                 @Override
