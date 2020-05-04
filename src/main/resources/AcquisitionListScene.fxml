@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane prefHeight="350.0" prefWidth="900" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.nmrfx.processor.gui.AcquisitionListSceneController">
+    <center>
+        <TableView fx:id="tableView">
+            <columns>
+            </columns>
+        </TableView>
+    </center>
+   <bottom>
+      <ButtonBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+        <buttons>
+            <Button mnemonicParsing="false" text="Add New" fx:id="addButton"/>
+        </buttons>
+      </ButtonBar>
+   </bottom>
+</BorderPane>

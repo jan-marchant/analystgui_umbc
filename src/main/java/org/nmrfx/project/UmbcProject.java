@@ -1,17 +1,98 @@
 package org.nmrfx.project;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableObjectValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableList;
+import org.nmrfx.processor.datasets.Dataset;
+import org.nmrfx.processor.datasets.peaks.PeakList;
+import org.nmrfx.processor.gui.Acquisition;
+import org.nmrfx.processor.gui.Experiment;
 import org.nmrfx.processor.gui.MoleculeCouplingList;
+import org.nmrfx.processor.gui.Sample;
 
 public class UmbcProject extends GUIStructureProject {
     private MoleculeCouplingList moleculeCouplingList;
+    public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
+    public ObservableList<Dataset> obsDatasetList = FXCollections.observableArrayList();
+
+    private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
+            obsDatasetList.clear();
+            obsDatasetList.addAll(UmbcProject.getActive().datasetList.values());
+    };
+
+    /*private ListChangeListener<Acquisition> acquisitionChangeListener = (ListChangeListener.Change<? extends Acquisition> c) -> {
+            gAcquisitionTable=UmbcProject.getActive().acquisitionTable;
+    };*/
+
+    public static ObservableList<Acquisition> gAcquisitionTable = FXCollections.observableArrayList();
+    public static ObservableList<Dataset> gObsDatasetList = FXCollections.observableArrayList();
+    public static ObservableList<Sample> gSampleList = FXCollections.observableArrayList();
+    public static ObservableList<Experiment> experimentList = FXCollections.observableArrayList();
+
 
     public UmbcProject(String name) {
         super(name);
         moleculeCouplingList=new MoleculeCouplingList(this);
+        datasetList.addListener(datasetChangeListener);
+        Bindings.bindContent(gAcquisitionTable,acquisitionTable);
+        Bindings.bindContent(gObsDatasetList,obsDatasetList);
+        //acquisitionTable.addListener(acquisitionChangeListener);
     }
 
     public MoleculeCouplingList getMoleculeCouplingList() {
         return moleculeCouplingList;
+    }
+
+    public static UmbcProject getActive() {
+        Project project = Project.getActive();
+        if ((project != null) && !(project instanceof UmbcProject)) {
+            project = replace(project.name, (StructureProject) project);
+        }
+
+        if (project == null) {
+            project = new UmbcProject("Untitled 1");
+        }
+        return (UmbcProject) project;
+    }
+
+    @Override
+    public void setActive() {
+        if (Project.activeProject instanceof UmbcProject) {
+            Bindings.unbindContent(gAcquisitionTable, UmbcProject.getActive().acquisitionTable);
+            Bindings.unbindContent(gObsDatasetList, UmbcProject.getActive().obsDatasetList);
+        }
+        super.setActive();
+        if (acquisitionTable!=null) {
+            Bindings.bindContent(gAcquisitionTable,acquisitionTable);
+            Bindings.bindContent(gObsDatasetList,obsDatasetList);
+        }
+    }
+
+    public static UmbcProject replace(String name, StructureProject project) {
+        UmbcProject newProject = new UmbcProject(name);
+        newProject.projectDir = project.projectDir;
+        newProject.molecules.putAll(project.molecules);
+        project.molecules.clear();
+        newProject.peakLists.putAll(project.peakLists);
+        project.peakLists.clear();
+        newProject.datasetList=project.datasetList;
+        newProject.peakListTable=project.peakListTable;
+        newProject.resFactory=project.resFactory;
+        newProject.peakPaths=project.peakPaths;
+        newProject.compoundMap.putAll(project.compoundMap);
+        newProject.activeMol = project.activeMol;
+        newProject.NOE_SETS.putAll(project.NOE_SETS);
+        newProject.ACTIVE_SET = project.ACTIVE_SET;
+        newProject.angleSets = project.angleSets;
+        newProject.activeSet = project.activeSet;
+        newProject.rdcSets = project.rdcSets;
+        newProject.activeRDCSet = project.activeRDCSet;
+        return newProject;
     }
 
 }

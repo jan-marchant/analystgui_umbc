@@ -11,22 +11,26 @@ import javafx.stage.Stage;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.peaks.PeakLabeller;
 import org.nmrfx.processor.gui.spectra.KeyBindings;
+import org.nmrfx.project.UmbcProject;
 
 public class UMBCApp extends AnalystApp {
     public static RNAManagedListSceneController rnaManListController;
+    public static AcquisitionListSceneController acquisitionListController;
 
     @Override
     public void start(Stage stage) throws Exception {
         super.start(stage);
-        interpreter.exec("import org.nmrfx.processor.gui.LabelDataset as ld");
+        interpreter.exec("exec(open('/Users/jan/soft/nmrfx/script').read())");
     }
     @Override
     MenuBar makeMenuBar(String appName) {
         MenuBar myMenuBar=super.makeMenuBar(appName);
         Menu umbcMenu = new Menu("UMBC");
         MenuItem rnaManListMenuItem = new MenuItem("Show RNA Managed Lists");
+        MenuItem acquisitionListMenuItem = new MenuItem("Show Acquisition Details");
         rnaManListMenuItem.setOnAction(e -> showRNAManagedList(e));
-        umbcMenu.getItems().addAll(rnaManListMenuItem);
+        acquisitionListMenuItem.setOnAction(e -> showAcquisitionList(e));
+        umbcMenu.getItems().addAll(rnaManListMenuItem,acquisitionListMenuItem);
         myMenuBar.getMenus().addAll(umbcMenu);
         if (isMac()) {
             MenuToolkit tk = MenuToolkit.toolkit();
@@ -52,6 +56,21 @@ public class UMBCApp extends AnalystApp {
             System.out.println("Couldn't make rnaManListController ");
         }
     }
+
+    @FXML
+    private void showAcquisitionList(ActionEvent event) {
+        if (acquisitionListController == null) {
+            acquisitionListController = AcquisitionListSceneController.create();
+            acquisitionListController.setAcquisitionList(UmbcProject.gAcquisitionTable);
+        }
+        if (acquisitionListController != null) {
+            acquisitionListController.getStage().show();
+            acquisitionListController.getStage().toFront();
+        } else {
+            System.out.println("Couldn't make acquisitionListController ");
+        }
+    }
+
 
 
     @Override
