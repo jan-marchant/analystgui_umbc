@@ -20,6 +20,7 @@ import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Callback;
@@ -34,6 +35,7 @@ import javax.xml.crypto.Data;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
@@ -187,15 +189,40 @@ public class AcquisitionListSceneController implements Initializable {
         TableColumn<Acquisition, ObservableList<ManagedList>> listCol = new TableColumn<>("Associated lists");
         listCol.setCellValueFactory(new PropertyValueFactory<>("managedLists"));
         listCol.setCellFactory(col -> new TableCell<Acquisition, ObservableList<ManagedList>>() {
+            private GridPane listPane=new GridPane();
             @Override
             public void updateItem(ObservableList<ManagedList> managedLists, boolean empty) {
                 super.updateItem(managedLists, empty);
                 if (empty) {
-                    setText(null);
+                    setGraphic(null);
                 } else {
-                    setText(managedLists.stream().map(ManagedList::getName)
-                            .collect(Collectors.joining(", ")));
+                    listPane.getChildren().removeAll(listPane.getChildren());
+                    Hyperlink hyperlink = new Hyperlink("<Add>");
+                    listPane.addColumn(
+                            0,
+                            hyperlink
+                    );
+                    hyperlink.setOnAction(e -> {
+                        System.out.println("Adding new");
+                    });
+
+                    int col = 1;
+                    for (ManagedList managedList : managedLists) {
+                        hyperlink = new Hyperlink(managedList.getName());
+                        listPane.addColumn(
+                                col,
+                                hyperlink
+                        );
+                        hyperlink.setOnAction(e -> {
+                            System.out.println(managedList.getName());
+                        });
+                        col++;
+                    }
+                    setGraphic(listPane);
                 }
+
+                //setText(managedLists.stream().map(ManagedList::getName)
+                 //       .collect(Collectors.joining(" ")));
             }
         });
 
