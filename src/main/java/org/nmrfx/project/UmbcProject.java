@@ -38,6 +38,7 @@ public class UmbcProject extends GUIStructureProject {
 
     public UmbcProject(String name) {
         super(name);
+        //fixme: this really belongs in Molecule I guess
         moleculeCouplingList=new MoleculeCouplingList(this);
         datasetList.addListener(datasetChangeListener);
         Bindings.bindContent(gAcquisitionTable,acquisitionTable);

@@ -13,6 +13,7 @@ import javafx.util.converter.IntegerStringConverter;
 import org.nmrfx.processor.datasets.peaks.PeakList;
 import org.nmrfx.utils.GUIUtils;
 
+import java.util.Iterator;
 import java.util.function.UnaryOperator;
 
 public class ManagedListSetup {
@@ -102,7 +103,8 @@ public class ManagedListSetup {
         int col=0;
         int row=0;
         //for (ExpDim expDim : acquisition.getExperiment().getExpDims()) {
-        for (ExpDim expDim =acquisition.getExperiment().getFirst(); expDim.getNextExpDim()!=null;expDim=expDim.getNextExpDim()) {
+        //for (ExpDim expDim =acquisition.getExperiment().getFirst(); expDim.getNextExpDim()!=null;expDim=expDim.getNextExpDim()) {
+        for (ExpDim expDim : acquisition.getExperiment().expDims) {
             labString = "";
             if (expDim.getNextExpDim()==null) {
                 break;

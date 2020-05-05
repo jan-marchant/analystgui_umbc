@@ -21,20 +21,26 @@ class ViewableComboBoxTableCell<S,T> extends TableCell<Acquisition,T> {
         combo.setItems(list);
         combo.prefWidthProperty().bind(this.widthProperty());
         combo.setOnAction(e -> {
-                    propertyRef.set(getTableRow().getItem(),combo.getValue());
-                }
-        );
+            Acquisition acq=getTableView().getItems().get(getIndex());
+            if (acq != null) {
+                    propertyRef.set(acq, combo.getValue());
+            }
+        });
         addEventFilter(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
             @Override
             public void handle(MouseEvent event) {
-                Acquisition acq=(Acquisition) getTableRow().getItem();
-                if (acq!=null) {
-                    if (acq.getManagedLists().size() > 0) {
-                        boolean result = GUIUtils.affirm("All associated managed lists will be deleted. Continue?");
-                        if (!result) {
-                            event.consume();
-                        } else {
-                            acq.getManagedLists().clear();
+                if (!isEmpty()) {
+                    Acquisition acq = getTableView().getItems().get(getIndex());
+                    if (acq != null) {
+                        if (acq.getManagedLists().size() > 0) {
+                            boolean result = GUIUtils.affirm("All associated managed lists will be deleted. Continue?");
+                            if (!result) {
+                                event.consume();
+                            } else {
+                                acq.getManagedLists().clear();
+                                combo.valueProperty().set(null);
+                                combo.show();
+                            }
                         }
                     }
                 }

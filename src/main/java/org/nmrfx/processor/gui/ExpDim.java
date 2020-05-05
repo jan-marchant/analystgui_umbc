@@ -1,5 +1,6 @@
 package org.nmrfx.processor.gui;
 
+import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.structure.chemistry.Atom;
 
 import java.util.List;
@@ -18,9 +19,15 @@ public class ExpDim {
     private Boolean observed;
     private ExpDim nextExpDim;
     private Connectivity nextCon;
+    private Nuclei nucleus;
 
+    public ExpDim(Nuclei nucleus,Boolean observed) {
+        this.observed=observed;
+        this.nucleus=nucleus;
+    }
     public ExpDim(Boolean observed) {
         this.observed=observed;
+        this.nucleus=Nuclei.H1;
     }
 
     public Boolean isObserved() {
@@ -38,5 +45,9 @@ public class ExpDim {
     public void setNext(Connectivity nextCon,ExpDim nextExpDim) {
         this.nextCon = nextCon;
         this.nextExpDim=nextExpDim;
+    }
+
+    public Nuclei getNucleus() {
+        return nucleus;
     }
 }

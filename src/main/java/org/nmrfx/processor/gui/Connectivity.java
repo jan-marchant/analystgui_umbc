@@ -38,22 +38,17 @@ public class Connectivity {
     private int minTransfers;
     private int maxTransfers;
     private String numBonds;
-    private UmbcProject project;
-    //private MoleculeCouplingList moleculeCouplingList;
 
-    public Connectivity(UmbcProject project, int minTransfers, int maxTransfers) {
-        this.project=project;
+    public Connectivity(int minTransfers, int maxTransfers) {
         this.type=TYPE.TOCSY;
         this.minTransfers=minTransfers;
         this.maxTransfers=maxTransfers;
     }
-    public Connectivity(UmbcProject project,String numBonds) {
-        this.project=project;
+    public Connectivity(String numBonds) {
         this.type=TYPE.J;
         this.numBonds=numBonds;
     }
-    public Connectivity(UmbcProject project,Connectivity.TYPE type) {
-        this.project=project;
+    public Connectivity(Connectivity.TYPE type) {
         this.type=type;
         switch (type) {
             case J:
@@ -115,8 +110,8 @@ public class Connectivity {
         return listCopy;
     }
 
-    //fixme: should obviously be using some kind of graph structure for this
-    public HashMap<Atom, Set<Atom>> getJConnections (Set<Atom> atoms1, Set<Atom> atoms2) {
+    public HashMap<Atom, Set<Atom>> getJConnections (UmbcProject project,Set<Atom> atoms1, Set<Atom> atoms2) {
+        //fixme: MoleculeCouplings to Molecule class
         project.getMoleculeCouplingList().checkMol();
         HashMap<Atom, Set<Atom>> connections = new HashMap<>();
 
@@ -139,7 +134,7 @@ public class Connectivity {
         return connections;
     }
 
-    public HashMap<Atom, Set<Atom>> getTocsyConnections (Set<Atom> atoms1, Set<Atom> atoms2) {
+    public HashMap<Atom, Set<Atom>> getTocsyConnections (UmbcProject project,Set<Atom> atoms1, Set<Atom> atoms2) {
         project.getMoleculeCouplingList().checkMol();
         HashMap<Atom, Set<Atom>> connections = new HashMap<>();
 

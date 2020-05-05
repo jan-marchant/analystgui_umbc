@@ -1,35 +1,65 @@
 package org.nmrfx.processor.gui;
 
-import javafx.beans.InvalidationListener;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import org.nmrfx.processor.datasets.Dataset;
-import org.nmrfx.project.Project;
+import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.utils.GUIUtils;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class Acquisition {
 
     private UmbcProject project;
     private ObservableList<ManagedList> managedListsList = FXCollections.observableArrayList();
+    private ObservableList<Experiment> validExperimentList = FXCollections.observableArrayList();
     private ObjectProperty<Dataset> dataset = new SimpleObjectProperty<>();
     private ObjectProperty<Experiment> experiment = new SimpleObjectProperty<>();
     private ObjectProperty<Sample> sample = new SimpleObjectProperty<>();
     private ListProperty<ManagedList> managedLists = new SimpleListProperty<>(managedListsList);
+    private ListProperty<Experiment> validExperiments = new SimpleListProperty<>(validExperimentList);
     private Double sensitivity;
 
     public Acquisition() {
         project=UmbcProject.getActive();
         project.acquisitionTable.add(this);
+        dataset.addListener((observableValue, oldValue, newValue) -> parseValidExperiments());
+        UmbcProject.experimentList.addListener((ListChangeListener.Change<? extends Experiment> c) -> parseValidExperiments());
+    }
+
+    private void parseValidExperiments() {
+        Dataset theDataset=getDataset();
+        validExperimentList.clear();
+        if (theDataset==null) {
+            setExperiment(null);
+            return;
+        }
+        ArrayList<Nuclei> nuclei = new ArrayList<>();
+        int nDim = theDataset.getNDim();
+        for (int i=0;i<nDim;i++) {
+            nuclei.add(theDataset.getNucleus(i));
+        }
+
+        for (Experiment experiment : UmbcProject.experimentList) {
+            ArrayList<Nuclei> experimentNuc = (ArrayList) nuclei.clone();
+            if (experiment.getNumObsDims()==nDim) {
+                for (ExpDim expDim : experiment.expDims) {
+                    experimentNuc.remove(expDim.getNucleus());
+                }
+                if (experimentNuc.isEmpty()) {
+                    validExperimentList.add(experiment);
+                }
+            }
+        }
+        if (!validExperimentList.contains(getExperiment())) {
+            setExperiment(null);
+        }
     }
 
     public void addNewManagedList() {
@@ -119,5 +149,9 @@ public class Acquisition {
 
     public void setSensitivity(Double sensitivity) {
         this.sensitivity = sensitivity;
+    }
+
+    public ObservableList<Experiment> getValidExperimentList() {
+        return validExperimentList;
     }
 }

@@ -6,12 +6,41 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
 public class Experiment {
+    class ExpDims implements Iterable<ExpDim> {
+        @Override
+        public Iterator<ExpDim> iterator() {
+            return new Iterator<ExpDim>() {
+
+                private ExpDim following=first;
+
+                @Override
+                public boolean hasNext() {
+                    return following!=null;
+                }
+
+                @Override
+                public ExpDim next() {
+                    if (following == null) {
+                        throw new NoSuchElementException();
+                    }
+                    ExpDim toReturn = following;
+                    following=following.getNextExpDim();
+                    return toReturn;
+                }
+            };
+        }
+    }
+
     private StringProperty name=new SimpleStringProperty();
     private ExpDim first;
     private ExpDim last;
     private int size;
     private IntegerProperty numObsDims=new SimpleIntegerProperty();
+    public ExpDims expDims = new ExpDims();
 
     public int getNumObsDims() {
         return numObsDims.get();
@@ -50,8 +79,6 @@ public class Experiment {
     public void setName(String name) {
         this.name.set(name);
     }
-
-
 
     public static class Pair {
         public final Connectivity connectivity;

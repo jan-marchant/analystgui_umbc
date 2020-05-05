@@ -8,6 +8,7 @@ package org.nmrfx.processor.gui;
 import com.sun.javafx.property.PropertyReference;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableArray;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -191,7 +192,61 @@ public class AcquisitionListSceneController implements Initializable {
         //TODO: add experiment filter to match selected dataset (/dataset filter to match selected experiment)
         TableColumn<Acquisition, Experiment> experimentCol = new TableColumn<>("Experiment");
         experimentCol.setCellValueFactory(cellData -> cellData.getValue().experimentProperty());
-        experimentCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"experiment",UmbcProject.experimentList));
+        //experimentCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"experiment",UmbcProject.experimentList));
+        experimentCol.setCellFactory(col -> new TableCell<Acquisition, Experiment>() {
+            ComboBox<Experiment> combo = new ComboBox();
+
+            {
+                combo.prefWidthProperty().bind(this.widthProperty());
+                combo.setOnAction(e -> {
+                    Acquisition acq=getAcq();
+                    if (acq != null) {
+                        acq.setExperiment(combo.getValue());
+                    }
+                });
+
+                addEventFilter(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+                    @Override
+                    public void handle(MouseEvent event) {
+                        if (!isEmpty()) {
+                            Acquisition acq = getAcq();
+                            if (acq != null) {
+                                if (acq.getManagedLists().size() > 0) {
+                                    boolean result = GUIUtils.affirm("All associated managed lists will be deleted. Continue?");
+                                    if (!result) {
+                                        event.consume();
+                                    } else {
+                                        acq.getManagedLists().clear();
+                                        combo.valueProperty().set(null);
+                                        combo.show();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            //TODO: is there a proper way to do this?
+           private Acquisition getAcq() {
+                    return getTableView().getItems().get(getIndex());
+            }
+
+            @Override
+            protected void updateItem(Experiment t, boolean empty) {
+                super.updateItem(t, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    Acquisition acq=getAcq();
+                    //TODO: should only need to set this once really
+                    combo.setItems(acq.getValidExperimentList());
+                    combo.setValue(t);
+                    setGraphic(combo);
+                }
+            }
+
+        });
+
         experimentCol.setPrefWidth(150);
         Label experimentLabel = new Label(experimentCol.getText());
         BorderPane experimentPane = new BorderPane();
