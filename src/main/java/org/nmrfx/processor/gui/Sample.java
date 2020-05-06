@@ -77,4 +77,12 @@ public class Sample {
     public void setCondition(Condition condition) {
         this.condition.set(condition);
     }
+
+    public float getAtomPercent(Atom atom) {
+        return 100;
+    }
+
+    public double getAtomFraction(Atom atom) {
+        return 1.0;
+    }
 }

@@ -17,9 +17,9 @@ public class Connectivity {
         HBOND;
     }
     public enum NOETYPE {
-        PEAKS("From peaks"),
+        PEAKS("From Peaks"),
         ATTRIBUTES("Attributes-based"),
-        STRUCTURE("From structure");
+        STRUCTURE("From Structure");
 
         private String label;
 

@@ -5,17 +5,30 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import org.nmrfx.structure.chemistry.Atom;
+import org.nmrfx.structure.chemistry.search.MNode;
+import org.nmrfx.structure.chemistry.search.MTree;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 public class Experiment {
     class ExpDims implements Iterable<ExpDim> {
+        boolean obs;
+        public ExpDims(boolean obs) {
+            this.obs=obs;
+        }
         @Override
         public Iterator<ExpDim> iterator() {
             return new Iterator<ExpDim>() {
 
                 private ExpDim following=first;
+                {
+                    if (obs) {
+                        while (following != null && !following.isObserved()) {
+                            following = following.getNextExpDim();
+                        }
+                    }
+                }
 
                 @Override
                 public boolean hasNext() {
@@ -28,7 +41,13 @@ public class Experiment {
                         throw new NoSuchElementException();
                     }
                     ExpDim toReturn = following;
-                    following=following.getNextExpDim();
+                    if (obs) {
+                        while (following != null && !following.isObserved()) {
+                            following = following.getNextExpDim();
+                        }
+                    } else {
+                        following = following.getNextExpDim();
+                    }
                     return toReturn;
                 }
             };
@@ -40,7 +59,9 @@ public class Experiment {
     private ExpDim last;
     private int size;
     private IntegerProperty numObsDims=new SimpleIntegerProperty();
-    public ExpDims expDims = new ExpDims();
+    public ExpDims expDims = new ExpDims(false);
+    public ExpDims obsDims = new ExpDims(true);
+
 
     public int getNumObsDims() {
         return numObsDims.get();

@@ -13,7 +13,11 @@ import javafx.util.converter.IntegerStringConverter;
 import org.nmrfx.processor.datasets.peaks.PeakList;
 import org.nmrfx.utils.GUIUtils;
 
+import java.beans.EventHandler;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.UnaryOperator;
 
 public class ManagedListSetup {
@@ -26,11 +30,11 @@ public class ManagedListSetup {
     TextField nameField=new TextField();
     ChoiceBox<Integer> ppmSetChoices = new ChoiceBox();
     ChoiceBox<Integer> rPpmSetChoices = new ChoiceBox();
-
+    //all NOE dims must use same NoeSet
     ChoiceBox<Connectivity.NOETYPE> noeType = new ChoiceBox();
-    TextField bondField = new TextField();
-    TextField minField = new TextField();
-    TextField maxField = new TextField();
+    //TextField bondField = new TextField();
+    //TextField minField = new TextField();
+    //TextField maxField = new TextField();
 
     public ManagedListSetup (Acquisition acquisition) {
         this.acquisition=acquisition;
@@ -142,24 +146,28 @@ public class ManagedListSetup {
                     break;
                 case J:
                     labString2 = "Number of bonds:";
-                    bondField.setTextFormatter(
+                    Label bondField=new Label(" expDim.getNextCon().getNumBonds()");
+                    /*bondField.setTextFormatter(
                             new TextFormatter<String>(new DefaultStringConverter(), expDim.getNextCon().getNumBonds(), bondFilter));
+
+                     */
                     connPane.add(new Label(labString2),0,row,1,1);
                     connPane.add(bondField,2,row++,4,1);
                     break;
                 case TOCSY:
                     labString2 = "Number of transfers:";
-                    Label min = new Label("Min:");
-                    Label max = new Label("Max:");
-                    minField.setTextFormatter(
+                    Label min = new Label("Min: "+expDim.getNextCon().getMinTransfers());
+                    Label max = new Label("Max: "+expDim.getNextCon().getMaxTransfers());
+                    /*minField.setTextFormatter(
                             new TextFormatter<Integer>(new IntegerStringConverter(), expDim.getNextCon().getMinTransfers(), integerFilter));
                     maxField.setTextFormatter(
                             new TextFormatter<Integer>(new IntegerStringConverter(), expDim.getNextCon().getMaxTransfers(), integerFilter));
+                     */
                     connPane.add(new Label(labString2),0,row,1,1);
                     connPane.add(min,1,row,1,1);
-                    connPane.add(minField,2,row,1,1);
+                    //connPane.add(minField,2,row,1,1);
                     connPane.add(max,3,row,1,1);
-                    connPane.add(maxField,4,row++,1,1);
+                    //connPane.add(maxField,4,row++,1,1);
                     break;
                 case HBOND:
                     labString2 = "H-bond (no setup required).";
@@ -206,7 +214,7 @@ public class ManagedListSetup {
         if (acquisition.getDataset()==null || acquisition.getSample()==null || acquisition.getExperiment()==null) {
             GUIUtils.warn("Cannot add list", "You must define all acquisition parameters before adding any lists.");
         } else {
-            ManagedList managedList=new ManagedList(acquisition,nameField.getText(),ppmSetChoices.getValue(),rPpmSetChoices.getValue(),noeType.getValue(),bondField.getText(),minField.getText(),maxField.getText());
+            ManagedList managedList=new ManagedList(acquisition,nameField.getText(),ppmSetChoices.getValue(),rPpmSetChoices.getValue(),noeType.getValue());
             acquisition.getManagedLists().add(managedList);
         }
         stage.close();
