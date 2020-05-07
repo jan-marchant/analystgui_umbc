@@ -1,15 +1,14 @@
 package org.nmrfx.processor.gui;
 
 import org.apache.commons.lang3.StringUtils;
-import org.nmrfx.processor.operations.Exp;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.*;
-import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 
 import java.util.*;
 
 public class Connectivity {
+
     public enum TYPE {
         NOE,
         J,
@@ -61,58 +60,59 @@ public class Connectivity {
         }
     }
 
-    public double getTransfers (List<Atom> atoms1,List<Atom> atoms2) {
-        /**
-         * Does Atom1 have a valid connection to Atom2 (Fn - Fn+1)?
-         * A connection here is an edge on the graph describing the possible paths of magnetization transfer
-         * where the nodes are Atom objects associated with a specific ExpDim
-         * Experiment takes care that the requested Atoms meet the pattern. This takes care that they are feasibly connected by the experiment type
-         */
-        double intensity=0.0;;
-        List<Atom> atoms=new ArrayList<>();
-        if (type==TYPE.NOE) {
-            for (Noe noe : getNoes(noeSet,atoms1,atoms2,true)) {
-                //will have to play with this
-                intensity+=noe.getIntensity();
-            }
-        } else if (type==TYPE.J) {
-
-        } else if (type==TYPE.HBOND) {
-
-        } else if (type==TYPE.TOCSY) {
-
+    public Set<Atom> getConnections(Atom atom) {
+        Set<Atom> atoms=new HashSet<>();
+        switch (type) {
+            case NOE:
+                //these are added in the peaklist tree
+                break;
+            case J:
+                atoms.addAll(getJConnections(atom));
+                break;
+            case TOCSY:
+                atoms.addAll(getTocsyConnections(atom));
+                break;
+            case HBOND:
+                System.out.println("HBOND not yet implemented");
+                break;
         }
-        return intensity;
+        return atoms;
     }
 
-    public synchronized List<Noe> getNoes(NoeSet noeSet,List<Atom> atoms1, List<Atom> atoms2, boolean requireActive) {
-        List listCopy = new ArrayList();
-        if (noeSet.isDirty()) {
-            //hmmm
-            boolean useDistances=false;
-            noeSet.updateContributions(useDistances, requireActive);
+    public Set<Atom> getJConnections(Atom atom) {
+        Molecule mol=atom.getTopEntity().molecule;
+        Set<Atom> atoms=new HashSet<>();
+
+        String[] bondsString = StringUtils.split(numBonds, ",");
+        List<Integer> nBondsList = new ArrayList<Integer>();
+        for (String number : bondsString) {
+            nBondsList.add(Integer.parseInt(number.trim()));
         }
-        if (atoms1.size() == 0 || atoms2.size()==0) {
-            return listCopy;
-        } else {
-            for (Noe noe : noeSet.get()) {
-                if (requireActive && !noe.isActive()) {
-                    continue;
-                }
-                if (
-                        (atoms1.contains(noe.spg1.getAnAtom()) && atoms2.contains(noe.spg2.getAnAtom())) ||
-                        (atoms2.contains(noe.spg1.getAnAtom()) && atoms1.contains(noe.spg2.getAnAtom()))
-                ) {
-                    listCopy.add(noe);
-                }
+        for (int bonds : nBondsList) {
+            atoms.addAll(UmbcProject.getMoleculeCouplingList(mol).couplingMap2.get(atom).get(bonds));
+        }
+
+        return atoms;
+    }
+
+    public Set<Atom> getTocsyConnections(Atom atom) {
+        Molecule mol=atom.getTopEntity().molecule;
+        Set<Atom> atoms=new HashSet<>();
+
+        for (int transfers = minTransfers; transfers<= maxTransfers; transfers++) {
+            for (LinkedList<Atom> list : UmbcProject.getMoleculeCouplingList(mol).transferMap2.get(atom).get(transfers)) {
+                //fixme: some way to check on labeling of intermediates in TOCSY transfer path
+                atoms.add(list.getLast());
             }
         }
-        return listCopy;
+
+        return atoms;
     }
+
 
     public HashMap<Atom, Set<Atom>> getJConnections (UmbcProject project,Set<Atom> atoms1, Set<Atom> atoms2) {
         //fixme: MoleculeCouplings to Molecule class
-        project.getMoleculeCouplingList().checkMol();
+        project.getMoleculeCouplingList(project.activeMol).reset();
         HashMap<Atom, Set<Atom>> connections = new HashMap<>();
 
         String[] bondsString = StringUtils.split(numBonds, ",");
@@ -135,7 +135,7 @@ public class Connectivity {
     }
 
     public HashMap<Atom, Set<Atom>> getTocsyConnections (UmbcProject project,Set<Atom> atoms1, Set<Atom> atoms2) {
-        project.getMoleculeCouplingList().checkMol();
+        project.getMoleculeCouplingList(project.activeMol).reset();
         HashMap<Atom, Set<Atom>> connections = new HashMap<>();
 
         Set<Atom> connected = new HashSet<>();

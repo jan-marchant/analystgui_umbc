@@ -14,12 +14,15 @@ import org.nmrfx.processor.gui.Acquisition;
 import org.nmrfx.processor.gui.Experiment;
 import org.nmrfx.processor.gui.MoleculeCouplingList;
 import org.nmrfx.processor.gui.Sample;
+import org.nmrfx.structure.chemistry.Molecule;
+
+import java.util.HashMap;
 
 public class UmbcProject extends GUIStructureProject {
-    private MoleculeCouplingList moleculeCouplingList;
     public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
     public ObservableList<Dataset> obsDatasetList = FXCollections.observableArrayList();
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
+    public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap;
 
     private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
             obsDatasetList.clear();
@@ -38,8 +41,6 @@ public class UmbcProject extends GUIStructureProject {
 
     public UmbcProject(String name) {
         super(name);
-        //fixme: this really belongs in Molecule I guess
-        moleculeCouplingList=new MoleculeCouplingList(this);
         datasetList.addListener(datasetChangeListener);
         Bindings.bindContent(gAcquisitionTable,acquisitionTable);
         Bindings.bindContent(gObsDatasetList,obsDatasetList);
@@ -47,8 +48,11 @@ public class UmbcProject extends GUIStructureProject {
         //acquisitionTable.addListener(acquisitionChangeListener);
     }
 
-    public MoleculeCouplingList getMoleculeCouplingList() {
-        return moleculeCouplingList;
+    public static MoleculeCouplingList getMoleculeCouplingList(Molecule mol) {
+        if (!moleculeCouplingMap.containsKey(mol)) {
+            moleculeCouplingMap.put(mol,new MoleculeCouplingList((mol)));
+        }
+        return moleculeCouplingMap.get(mol);
     }
 
     public static UmbcProject getActive() {

@@ -1,6 +1,5 @@
 package org.nmrfx.processor.gui;
 
-import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.*;
 import org.nmrfx.structure.chemistry.search.MNode;
 import org.nmrfx.structure.chemistry.search.MTree;
@@ -9,11 +8,7 @@ import java.util.*;
 
 public class MoleculeCouplingList {
 
-    private UmbcProject project;
     private Molecule mol;
-
-    //HashMap<Atom, HashMap<Integer, Set<LinkedList<Atom>>>> jMap = new HashMap();
-    //HashMap<Atom, HashMap<Integer, Set<LinkedList<Atom>>>> tocsyMap = new HashMap();
 
     MTree bondTree;
     MTree tocsyTree;
@@ -27,12 +22,11 @@ public class MoleculeCouplingList {
     public HashMap<Atom,HashMap<Integer,ArrayList<Atom>>> homoCouplingMap2=new HashMap<>();
     public HashMap<Atom,HashMap<Integer,ArrayList<LinkedList<Atom>>>> transferMap2=new HashMap<>();
 
-    public MoleculeCouplingList(UmbcProject project) {
-        this.project = project;
+    public MoleculeCouplingList(Molecule mol) {
+        this.mol = mol;
     }
 
     public void initBondsAndTransfers() {
-        this.mol=project.activeMol;
         initAllBondPaths(5);
         initAllTocsyPaths(5);
     }
@@ -270,8 +264,7 @@ public class MoleculeCouplingList {
     }
 
 
-    public void checkMol() {
-        if (mol!=project.activeMol) {
+    public void reset() {
             bondTree=null;
             tocsyTree=null;
             tocsyProcessed=false;
@@ -280,6 +273,5 @@ public class MoleculeCouplingList {
             homoCouplingMap.clear();
             transferMap.clear();
             initBondsAndTransfers();
-        }
     }
 }

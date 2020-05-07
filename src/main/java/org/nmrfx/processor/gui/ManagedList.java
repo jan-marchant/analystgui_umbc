@@ -33,10 +33,6 @@ public class ManagedList extends PeakList {
     private ManagedPeak addedPeak=null;
 
     public ManagedList(Acquisition acquisition, String name, int ppmSet, int rPpmset,Connectivity.NOETYPE noeType) {
-        //might regret this! Adding one peakdim for every expDim - whether obs or not. Can update PeakDim with flag, and update GUI code to take into account.
-        //but probably Bruce will reject this idea!
-        //super(name,acquisition.getExperiment().getSize());
-        //no - impliment this in managedpeak - add nonObsPeakDim or something
         super(name, acquisition.getDataset().getNDim());
         this.setSampleConditionLabel(acquisition.getSample().getCondition().toString());
         this.setSlideable(true);
@@ -166,39 +162,6 @@ public class ManagedList extends PeakList {
             ManagedPeak returnPeak=addedPeak;
             addedPeak=null;
             return returnPeak;
-            /*ManagedPeak manPeak=new ManagedPeak(this,newPeak);
-
-            peaks().add(manPeak);
-            //add diagonal
-            ManagedPeak dpeak = new ManagedPeak(this, nDim);
-            //copy to other appropriate lists - use relative weights to set peak size
-            //filter peaks is simply just a copy to the master list!
-            //though need to overload with handling for no assignments
-            //could be a "skip asking" variable read before bringing up the atompicker
-            if (LabelDataset.getMaster()!=labelDataset) {
-                LabelDataset.getMasterList().addLinkedPeak(manPeak, percent);
-                if (diag) {
-                    LabelDataset.getMasterList().addLinkedPeak(dpeak, percent);
-                }
-            }
-            for (LabelDataset ld : LabelDataset.labelDatasetTable) {
-                if (ld!=labelDataset && ld.isActive()) {
-                    ld.getManagedList().addLinkedPeak(manPeak, percent);
-                    if (diag) {
-                        ld.getManagedList().addLinkedPeak(dpeak, percent);
-                    }
-                }
-            }
-            this.reIndex();
-            for (int i=0;i<newPeak.getPeakDims().length;i++) {
-                manPeak.getPeakDim(i).setFrozen(newPeak.getPeakDim(i).isFrozen());
-            }
-            for (PolyChart chart : PolyChart.CHARTS) {
-                chart.drawPeakLists(true);
-                //chart.refresh();
-            }
-            return manPeak;
-             */
          }
         return null;
     }
@@ -298,7 +261,7 @@ public class ManagedList extends PeakList {
                 addedPeaks.addAll(addNoeToTree(noe));
             }
         } else {
-            addedPeaks.addAll(addPeaksDepthFirst(acquisition.getDimNodeMap(),null,null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null,null,true));
+            addedPeaks.addAll(addPeaksMiddleOut(acquisition.getDimNodeMap(),null,null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null,null,true));
         }
         return addedPeaks;
     }
@@ -334,6 +297,7 @@ public class ManagedList extends PeakList {
                     //check if already connected
                     if (!mNode.forwardWeightedEdges.containsKey(mNode2)) {
                         mNode.forwardWeightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
+                        mNode2.backwardWeightedEdges.put(mNode, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
                         nodeSet.add(mNode);
                         nodeSet2.add(mNode2);
                     }
@@ -344,12 +308,13 @@ public class ManagedList extends PeakList {
                 if (mNode != null && mNode2 != null) {
                     if (!mNode.forwardWeightedEdges.containsKey(mNode2)) {
                         mNode.forwardWeightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
+                        mNode2.backwardWeightedEdges.put(mNode, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
                         nodeSet.add(mNode);
                         nodeSet2.add(mNode2);
                     }
                 }
                 //add peak based on localDimNodeMap
-                addedPeaks.addAll(addPeaksDepthFirst(localDimNodeMap,acquisition.getFirstNode(),null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null,null,true));
+                addedPeaks.addAll(addPeaksMiddleOut(localDimNodeMap,acquisition.getFirstNode(),null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null,null,true));
 
                 localDimNodeMap.clear();
             }
@@ -361,7 +326,8 @@ public class ManagedList extends PeakList {
         return addedPeaks;
     }
 
-    private List<ManagedPeak> addPeaksDepthFirst(HashMap<ExpDim, Set<MNode>> dimNodeMap, MNode node, ExpDim expDim, HashMap<Integer,Atom> atomMap, Set<Noe> noeArray, double peakIntensity, List<ManagedPeak> addedPeaks,MNode startNode,ExpDim startDim,boolean forward) {
+    private List<ManagedPeak> addPeaksMiddleOut(HashMap<ExpDim, Set<MNode>> dimNodeMap, MNode node, ExpDim expDim, HashMap<Integer,Atom> atomMap, Set<Noe> noeArray, double peakIntensity, List<ManagedPeak> addedPeaks, MNode startNode, ExpDim startDim, boolean forward) {
+        //if I had a reverse nodeDimMap wouldn't need to keep track of expDims...
         if (peakIntensity<pickThreshold) {
             return addedPeaks;
         }
@@ -377,7 +343,7 @@ public class ManagedList extends PeakList {
                 }
             }
             for (MNode startingNode : dimNodeMap.get(smallestDim)) {
-                addPeaksDepthFirst(dimNodeMap, startingNode, smallestDim, new HashMap<>(), new HashSet<>(), 1.0, addedPeaks, startingNode,smallestDim,forward);
+                addPeaksMiddleOut(dimNodeMap, startingNode, smallestDim, new HashMap<>(), new HashSet<>(), 1.0, addedPeaks, startingNode,smallestDim,forward);
             }
             return addedPeaks;
         }
@@ -394,7 +360,6 @@ public class ManagedList extends PeakList {
         }
         for (MNode nextNode : edges.keySet()) {
             if (nextNode==acquisition.getFirstNode()) {
-                //we've completed the loop, check and pick the peak!
                 if (atomMap.size()!=this.nDim) {
                     System.out.println("Unexpected error adding peak to "+this.getName()+": "+atomMap);
                     return addedPeaks;
@@ -414,7 +379,7 @@ public class ManagedList extends PeakList {
                 peakIntensity*=edges.get(acquisition.getLastNode());
                 nextNode=startNode;
                 nextExpDim=startDim;
-                addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, atomMap, noeArray, peakIntensity, addedPeaks, startNode, startDim, false);
+                addPeaksMiddleOut(dimNodeMap, nextNode, nextExpDim, atomMap, noeArray, peakIntensity, addedPeaks, startNode, startDim, false);
             } else {
                 nextExpDim = expDim.getNextExpDim(forward);
                 HashMap<Integer,Atom> nextAtomMap=new HashMap<>();
@@ -427,10 +392,10 @@ public class ManagedList extends PeakList {
                         for (Noe noe : noeSet.getConstraints(node.getAtom() + " " + nextNode.getAtom(), true)) {
                             Set<Noe> nextNoeArray = new HashSet<>();
                             nextNoeArray.addAll(noeArray);
-                            addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, nextAtomMap, nextNoeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
+                            addPeaksMiddleOut(dimNodeMap, nextNode, nextExpDim, nextAtomMap, nextNoeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
                         }
                     } else {
-                        addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, nextAtomMap, noeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
+                        addPeaksMiddleOut(dimNodeMap, nextNode, nextExpDim, nextAtomMap, noeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
                     }
                 }
             }
