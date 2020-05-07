@@ -298,7 +298,7 @@ public class ManagedList extends PeakList {
                 addedPeaks.addAll(addNoeToTree(noe));
             }
         } else {
-            addedPeaks.addAll(addPeaksDepthFirst(acquisition.getDimNodeMap(),null,null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null));
+            addedPeaks.addAll(addPeaksDepthFirst(acquisition.getDimNodeMap(),null,null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null,null,true));
         }
         return addedPeaks;
     }
@@ -332,8 +332,8 @@ public class ManagedList extends PeakList {
                 //add edge weighted by intensity and labelling
                 if (mNode != null && mNode2 != null) {
                     //check if already connected
-                    if (!mNode.weightedEdges.containsKey(mNode2)) {
-                        mNode.weightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
+                    if (!mNode.forwardWeightedEdges.containsKey(mNode2)) {
+                        mNode.forwardWeightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
                         nodeSet.add(mNode);
                         nodeSet2.add(mNode2);
                     }
@@ -342,14 +342,14 @@ public class ManagedList extends PeakList {
                 mNode2 = acquisition.getDimAtomNodeMap().get(expDim.getNextExpDim()).get(noe.spg1.getAnAtom());
                 //add edge weighted by intensity and labelling
                 if (mNode != null && mNode2 != null) {
-                    if (!mNode.weightedEdges.containsKey(mNode2)) {
-                        mNode.weightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
+                    if (!mNode.forwardWeightedEdges.containsKey(mNode2)) {
+                        mNode.forwardWeightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
                         nodeSet.add(mNode);
                         nodeSet2.add(mNode2);
                     }
                 }
                 //add peak based on localDimNodeMap
-                addedPeaks.addAll(addPeaksDepthFirst(localDimNodeMap,acquisition.getStartNode(),null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null));
+                addedPeaks.addAll(addPeaksDepthFirst(localDimNodeMap,acquisition.getFirstNode(),null,new HashMap<>(),new HashSet<>(),1.0,new ArrayList<>(),null,null,true));
 
                 localDimNodeMap.clear();
             }
@@ -361,16 +361,15 @@ public class ManagedList extends PeakList {
         return addedPeaks;
     }
 
-    private List<ManagedPeak> addPeaksDepthFirst(HashMap<ExpDim, Set<MNode>> dimNodeMap, MNode node, ExpDim expDim, HashMap<Integer,Atom> atomMap, Set<Noe> noeArray, double peakIntensity, List<ManagedPeak> addedPeaks,MNode startNode) {
-        // Start from the dim with the fewest nodes. go from that expDim to end, then from that expDim back to start. Need to make the expDim list doubly linked. but potentially much faster, especially for the peak add case with 2 small dimNodes.
-        // also helps with inferring NOEs in non observe dims.
-        // (current strategy is no improvement)
+    private List<ManagedPeak> addPeaksDepthFirst(HashMap<ExpDim, Set<MNode>> dimNodeMap, MNode node, ExpDim expDim, HashMap<Integer,Atom> atomMap, Set<Noe> noeArray, double peakIntensity, List<ManagedPeak> addedPeaks,MNode startNode,ExpDim startDim,boolean forward) {
+        if (peakIntensity<pickThreshold) {
+            return addedPeaks;
+        }
         if (startNode==null) {
             //initial setup
             ExpDim smallestDim=null;
             int min=Integer.MAX_VALUE;
             for (ExpDim testExpDim:acquisition.getExperiment().expDims) {
-                //may be more efficient to count number of forward * backward edges, but for peak add there's only one or two connections from both added dims so not worth it
                 int size=dimNodeMap.get(testExpDim).size();
                 if (size<min) {
                     smallestDim=testExpDim;
@@ -378,8 +377,7 @@ public class ManagedList extends PeakList {
                 }
             }
             for (MNode startingNode : dimNodeMap.get(smallestDim)) {
-                //addedPeaks updated on the fly so no need to track
-                addPeaksDepthFirst(dimNodeMap, startingNode, smallestDim, new HashMap<>(), new HashSet<>(), 1.0, addedPeaks, startingNode);
+                addPeaksDepthFirst(dimNodeMap, startingNode, smallestDim, new HashMap<>(), new HashSet<>(), 1.0, addedPeaks, startingNode,smallestDim,forward);
             }
             return addedPeaks;
         }
@@ -388,22 +386,14 @@ public class ManagedList extends PeakList {
                 atomMap.put(dimMap.get(expDim),node.getAtom());
             }
         }
-        ExpDim nextExpDim;
-        if (expDim==null) {
-            nextExpDim=acquisition.getExperiment().getFirst();
+        HashMap<MNode,Double> edges;
+        if (forward==true) {
+            edges=node.forwardWeightedEdges;
         } else {
-            nextExpDim = expDim.getNextExpDim();
+            edges=node.backwardWeightedEdges;
         }
-        for (MNode nextNode : node.weightedEdges.keySet()) {
-            if (peakIntensity<pickThreshold) {
-                return addedPeaks;
-            }
-            if (nextNode==acquisition.getEndNode()) {
-                peakIntensity*=node.weightedEdges.get(acquisition.getEndNode());
-                nextNode=acquisition.getStartNode();
-            }
-            //different startNode... fixme: rename
-            if (nextNode==startNode) {
+        for (MNode nextNode : edges.keySet()) {
+            if (nextNode==acquisition.getFirstNode()) {
                 //we've completed the loop, check and pick the peak!
                 if (atomMap.size()!=this.nDim) {
                     System.out.println("Unexpected error adding peak to "+this.getName()+": "+atomMap);
@@ -419,23 +409,29 @@ public class ManagedList extends PeakList {
                 return addedPeaks;
             }
 
-            HashMap<Integer,Atom> nextAtomMap=new HashMap<>();
-            for (int i : atomMap.keySet()) {
-                nextAtomMap.put(i,atomMap.get(i));
-            }
-            if (dimNodeMap.get(nextExpDim).contains(nextNode)) {
-                double nextPeakIntensity=peakIntensity*node.weightedEdges.get(nextNode);
-                if (nextPeakIntensity<pickThreshold) {
-                    return addedPeaks;
+            ExpDim nextExpDim;
+            if (nextNode==acquisition.getLastNode()) {
+                peakIntensity*=edges.get(acquisition.getLastNode());
+                nextNode=startNode;
+                nextExpDim=startDim;
+                addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, atomMap, noeArray, peakIntensity, addedPeaks, startNode, startDim, false);
+            } else {
+                nextExpDim = expDim.getNextExpDim(forward);
+                HashMap<Integer,Atom> nextAtomMap=new HashMap<>();
+                for (int i : atomMap.keySet()) {
+                    nextAtomMap.put(i,atomMap.get(i));
                 }
-                if (expDim.getNextCon().type==Connectivity.TYPE.NOE) {
-                    for (Noe noe : noeSet.getConstraints(node.getAtom() + " " + nextNode.getAtom(), true)) {
-                        Set<Noe> nextNoeArray = new HashSet<>();
-                        nextNoeArray.addAll(noeArray);
-                        addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, nextAtomMap, nextNoeArray, nextPeakIntensity,addedPeaks,startNode);
+                if (dimNodeMap.get(nextExpDim).contains(nextNode)) {
+                    double nextPeakIntensity = peakIntensity * node.forwardWeightedEdges.get(nextNode);
+                    if (expDim.getNextCon(forward).type == Connectivity.TYPE.NOE) {
+                        for (Noe noe : noeSet.getConstraints(node.getAtom() + " " + nextNode.getAtom(), true)) {
+                            Set<Noe> nextNoeArray = new HashSet<>();
+                            nextNoeArray.addAll(noeArray);
+                            addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, nextAtomMap, nextNoeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
+                        }
+                    } else {
+                        addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, nextAtomMap, noeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
                     }
-                } else {
-                    addPeaksDepthFirst(dimNodeMap, nextNode, nextExpDim, nextAtomMap, noeArray, nextPeakIntensity,addedPeaks,startNode);
                 }
             }
         }

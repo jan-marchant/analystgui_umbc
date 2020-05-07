@@ -12,11 +12,8 @@ import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.processor.datasets.peaks.AtomResonance;
 import org.nmrfx.processor.datasets.peaks.Peak;
 import org.nmrfx.processor.datasets.peaks.PeakDim;
-import org.nmrfx.processor.operations.Exp;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Atom;
-import org.nmrfx.structure.chemistry.Bond;
-import org.nmrfx.structure.chemistry.RNALabels;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.search.MNode;
 import org.nmrfx.structure.chemistry.search.MTree;
@@ -40,8 +37,8 @@ public class Acquisition {
     private MTree acquisitionTree;
     private HashMap<ExpDim, HashMap<Atom, MNode>> dimAtomNodeMap = new HashMap<>();
     private HashMap<ExpDim, Set<MNode>> dimNodeMap = new HashMap<>();
-    private MNode startNode;
-    private MNode endNode;
+    private MNode firstNode;
+    private MNode lastNode;
 
 
     public Acquisition() {
@@ -250,52 +247,56 @@ public class Acquisition {
     }
 
     public MTree getAcquisitionTree() {
+        //acquisitionTree nodes (atoms) are contained within generations (expDims) and have edges to connected
+        //in the preceding (backward) and following (forward) generations. The weight of each edge is given by the
+        //labeling fraction of the first node in the forward direction. If the weight is 0 then the node is not added.
+        //
         if (acquisitionTree!=null) {
             return acquisitionTree;
         }
         acquisitionTree=new MTree();
-        //Expect a signal for every path between startNode and endNode
-        //use labeling scheme to re-weight the nodes (possibly to zero)
-        //pathWeight is product of all weights and is proportional to
-        //expected intensity of acquired peak
-        startNode=acquisitionTree.addNode();
-        endNode=acquisitionTree.addNode();
+
+        firstNode =acquisitionTree.addNode();
+        lastNode =acquisitionTree.addNode();
 
         dimAtomNodeMap.clear();
         dimNodeMap.clear();
 
         boolean firstDim=true;
+        //populate generations
         for (ExpDim expDim : getExperiment().expDims) {
             HashMap<Atom, MNode> atomNode = new HashMap<>();
             Set<MNode> nodeSet = new HashSet<>();
             for (Atom atom : expDim.getActiveAtoms(getSample().getMolecule())) {
-                MNode mNode = acquisitionTree.addNode();
-                mNode.setAtom(atom);
-                atomNode.put(atom, mNode);
-                nodeSet.add(mNode);
-                if (firstDim) {
-                    //mNode.weightedEdges.put(startNode,1.0);
-                    startNode.weightedEdges.put(mNode,1.0);
-                }
-                if (expDim.getNextExpDim()==null) {
-                    double fraction=getSample().getAtomFraction(atom);
-                    if (fraction>0) {
-                        mNode.weightedEdges.put(endNode, fraction);
-                        //endNode.weightedEdges.put(mNode,fraction);
+                double fraction=getSample().getAtomFraction(atom);
+                if (fraction>0) {
+                    MNode mNode = acquisitionTree.addNode();
+                    mNode.setAtom(atom);
+                    atomNode.put(atom, mNode);
+                    nodeSet.add(mNode);
+                    if (firstDim) {
+                        mNode.backwardWeightedEdges.put(firstNode,1.0);
+                        firstNode.forwardWeightedEdges.put(mNode,1.0);
+                    }
+                    if (expDim.getNextExpDim()==null) {
+                            mNode.forwardWeightedEdges.put(lastNode, fraction);
+                            lastNode.backwardWeightedEdges.put(mNode,fraction);
                     }
                 }
             }
             dimAtomNodeMap.put(expDim, atomNode);
             dimNodeMap.put(expDim, nodeSet);
         }
+        //populate edges
         for (ExpDim expDim : getExperiment().expDims) {
             for (MNode mNode : dimNodeMap.get(expDim)) {
-                for (Atom atom : expDim.getConnected(mNode.getAtom())) {
-                    double fraction=getSample().getAtomFraction(atom);
-                    MNode connectedNode = dimAtomNodeMap.get(expDim.getNextExpDim()).get(atom);
+                Atom atom=mNode.getAtom();
+                double fraction=getSample().getAtomFraction(atom);
+                for (Atom connectedAtom : expDim.getConnected(mNode.getAtom())) {
+                    MNode connectedNode = dimAtomNodeMap.get(expDim.getNextExpDim()).get(connectedAtom);
                     if (connectedNode != null) {
-                        mNode.weightedEdges.put(connectedNode,fraction);
-                        //connectedNode.weightedEdges.put(mNode,fraction);
+                        mNode.forwardWeightedEdges.put(connectedNode,fraction);
+                        connectedNode.backwardWeightedEdges.put(mNode,fraction);
                     }
                 }
             }
@@ -305,12 +306,12 @@ public class Acquisition {
 
     //Probably not needed
 
-    public MNode getStartNode() {
-        return startNode;
+    public MNode getFirstNode() {
+        return firstNode;
     }
 
-    public MNode getEndNode() {
-        return endNode;
+    public MNode getLastNode() {
+        return lastNode;
     }
 
     public HashMap<ExpDim, HashMap<Atom, MNode>> getDimAtomNodeMap() {

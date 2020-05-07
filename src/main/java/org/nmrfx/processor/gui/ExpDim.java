@@ -20,7 +20,9 @@ public class ExpDim {
     private String pattern;
     private Boolean observed;
     private ExpDim nextExpDim;
+    private ExpDim previousExpDim;
     private Connectivity nextCon;
+    private Connectivity previousCon;
     private Nuclei nucleus;
 
     public ExpDim(Nuclei nucleus,Boolean observed) {
@@ -36,17 +38,36 @@ public class ExpDim {
         return observed;
     }
 
+    public ExpDim getNextExpDim(boolean forward) {
+        if (forward) {
+            return nextExpDim;
+        } else {
+            return previousExpDim;
+        }
+    }
+
+    public Connectivity getNextCon(boolean forward) {
+        if (forward) {
+            return nextCon;
+        } else {
+            return previousCon;
+        }
+    }
+
     public ExpDim getNextExpDim() {
-        return nextExpDim;
+        return getNextExpDim(true);
     }
 
     public Connectivity getNextCon() {
-        return nextCon;
+        return getNextCon(true);
     }
+
 
     public void setNext(Connectivity nextCon,ExpDim nextExpDim) {
         this.nextCon = nextCon;
+        nextExpDim.previousCon=nextCon;
         this.nextExpDim=nextExpDim;
+        nextExpDim.previousExpDim=this;
     }
 
     public ArrayList<Atom> getActiveAtoms(Molecule mol) {
