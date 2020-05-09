@@ -1,16 +1,16 @@
 package org.nmrfx.processor.gui;
 
 import org.nmrfx.structure.chemistry.Atom;
+import org.nmrfx.structure.chemistry.Polymer;
 import org.nmrfx.structure.chemistry.RNALabels;
 
 import java.util.HashMap;
 
 public class IsotopeLabels {
     private String labelScheme;
-    private HashMap<Atom,Float> atomPercent;
 
-    public IsotopeLabels () {
-        this.labelScheme="";
+    public IsotopeLabels (String labelScheme) {
+        this.labelScheme=labelScheme;
     }
 
     public String getLabelScheme() {
@@ -21,20 +21,15 @@ public class IsotopeLabels {
         this.labelScheme = labelScheme;
     }
 
-    public float getAtomPercent (Atom atom) {
+    public double getFraction (Atom atom) {
+        //TODO: implement label scheme setup for arbitrary molecules
         if (atom!=null) {
-            float percent;
-            try {
-                percent = atomPercent.get(atom);
-            } catch (Exception e) {
-                percent = RNALabels.atomPercentLabelString(atom, getLabelScheme());
-                if (percent>100) {
-                    System.out.println("Check labeling string - "+atom.getName()+" is apparently "+percent+"% labeled");
-                    percent=100;
+            if (atom.getTopEntity() instanceof Polymer) {
+                if (((Polymer) atom.getTopEntity()).isRNA()) {
+                    return RNALabels.atomPercentLabelString(atom, getLabelScheme())/100;
                 }
-                atomPercent.put(atom, percent);
             }
-            return percent;
+            return 1.0;
         } else {
             System.out.println("Couldn't find atom");
             return 0;

@@ -10,11 +10,9 @@ import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.peaks.PeakList;
-import org.nmrfx.processor.gui.Acquisition;
-import org.nmrfx.processor.gui.Experiment;
-import org.nmrfx.processor.gui.MoleculeCouplingList;
-import org.nmrfx.processor.gui.Sample;
+import org.nmrfx.processor.gui.*;
 import org.nmrfx.structure.chemistry.Molecule;
+import org.nmrfx.structure.chemistry.constraints.NoeSet;
 
 import java.util.HashMap;
 
@@ -22,7 +20,8 @@ public class UmbcProject extends GUIStructureProject {
     public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
     public ObservableList<Dataset> obsDatasetList = FXCollections.observableArrayList();
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
-    public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap;
+    public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap= new HashMap<>();
+    public static HashMap<String,NoeSet> noeSetMap = new HashMap<>();
 
     private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
             obsDatasetList.clear();
@@ -48,11 +47,21 @@ public class UmbcProject extends GUIStructureProject {
         //acquisitionTable.addListener(acquisitionChangeListener);
     }
 
-    public static MoleculeCouplingList getMoleculeCouplingList(Molecule mol) {
-        if (!moleculeCouplingMap.containsKey(mol)) {
-            moleculeCouplingMap.put(mol,new MoleculeCouplingList((mol)));
+    public static MoleculeCouplingList getMoleculeCouplingList(Molecule molecule) {
+        if (!moleculeCouplingMap.containsKey(molecule)) {
+            moleculeCouplingMap.put(molecule,new MoleculeCouplingList((molecule)));
         }
-        return moleculeCouplingMap.get(mol);
+        return moleculeCouplingMap.get(molecule);
+    }
+
+
+    public static NoeSet getNoeSet(Molecule molecule, Connectivity.NOETYPE noeType, int ppmSet) {
+        String key=molecule.toString()+noeType.toString()+ppmSet;
+        if (!noeSetMap.containsKey(key)) {
+            NoeSet noeSet=new NoeSet(noeType.toString(),molecule,ppmSet);
+            noeSetMap.put(key,noeSet);
+        }
+        return noeSetMap.get(key);
     }
 
     public static UmbcProject getActive() {

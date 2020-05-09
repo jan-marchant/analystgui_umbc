@@ -15,6 +15,7 @@ import org.nmrfx.processor.datasets.peaks.PeakDim;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
+import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.structure.chemistry.search.MNode;
 import org.nmrfx.structure.chemistry.search.MTree;
 import org.nmrfx.utils.GUIUtils;
@@ -32,14 +33,7 @@ public class Acquisition {
     private ListProperty<ManagedList> managedLists = new SimpleListProperty<>(managedListsList);
     private ListProperty<Experiment> validExperiments = new SimpleListProperty<>(validExperimentList);
     private Double sensitivity;
-    private HashMap<Atom,Float> atomPercent;
-    //think about these implementing some kind of interface
-    private MTree acquisitionTree;
-    private HashMap<ExpDim, HashMap<Atom, MNode>> dimAtomNodeMap = new HashMap<>();
-    private HashMap<ExpDim, Set<MNode>> dimNodeMap = new HashMap<>();
-    private MNode firstNode;
-    private MNode lastNode;
-
+    private ExperimentTree acquisitionTree;
 
     public Acquisition() {
         project=UmbcProject.getActive();
@@ -172,81 +166,91 @@ public class Acquisition {
 
     //fixme: the below should also account for experiment. Need an experiment version of getPeakPercent
     // move this into sample
-    public float getPeakPercent(Peak peak) {
-        //TODO: support labeling schemes like A28/Ar (i.e. should not see A2/8-Ar NOEs from same residue in same molecule
-        // means subtle difference in label string parsing
 
-        //TODO: Add GUI support for setting labeling percent
-        Float total=null;
-        float atomFraction;
-        AtomResonance resonance;
-        for (PeakDim peakDim : peak.getPeakDims()) {
-            resonance = (AtomResonance) peakDim.getResonance();
-            atomFraction=(float) getAtomPercent(resonance.getAtom()) /100;
-            if (total==null) {
-                total=atomFraction;
-            } else {
-                total*=atomFraction;
-            }
-        }
-        return total==null?0:100*total;
-    }
+    public List<ManagedPeak> addNoes(ManagedList list, Peak newPeak) {
+        List<ManagedPeak> addedPeaks = new ArrayList<>();
 
-    public float getAtomPercent (Atom atom) {
-        if (atom!=null) {
-            float percent;
-            try {
-                percent = atomPercent.get(atom);
-            } catch (Exception e) {
-                percent = getSample().getAtomPercent(atom);
-                if (percent>100) {
-                    System.out.println("Check labeling string - "+atom.getName()+" is apparently "+percent+"% labeled");
-                    percent=100;
-                }
-                atomPercent.put(atom, percent);
-            }
-            return percent;
-        } else {
-            System.out.println("Couldn't find atom");
-            return 0;
-        }
-    }
-
-    public void addNoes(ManagedList list, Peak newPeak) {
         for (ExpDim expDim : getExperiment().expDims) {
-            if (expDim.getNextCon().type==Connectivity.TYPE.NOE) {
-                Atom atom1=null;
-                Atom atom2=null;
+            if (expDim.getNextCon() != null && (expDim.getNextCon().type == Connectivity.TYPE.NOE)) {
+                Atom atom1 = null;
+                Atom atom2 = null;
+                PeakDim peakDim1 = null;
+                PeakDim peakDim2 = null;
                 if (expDim.isObserved()) {
-                    atom1=((AtomResonance) newPeak.getPeakDim(list.getDimMap().get(expDim)).getResonance()).getAtom();
+                    peakDim1=newPeak.getPeakDim(list.getDimMap().get(expDim));
+                    atom1 = ((AtomResonance) peakDim1.getResonance()).getAtom();
                 }
                 if (expDim.getNextExpDim().isObserved()) {
-                    atom2=((AtomResonance) newPeak.getPeakDim(list.getDimMap().get(expDim)).getResonance()).getAtom();
+                    peakDim2=newPeak.getPeakDim(list.getDimMap().get(expDim.getNextExpDim()));
+                    atom2 = ((AtomResonance) peakDim2.getResonance()).getAtom();
                 }
-                boolean add=true;
-                if (atom1==null || atom2 == null) {
+                boolean add = true;
+                if (!expDim.getConnected(atom1).contains(atom2)) {
                     add=false;
+                }
+                if (atom1 == null || atom2 == null) {
+                    add = false;
                     //TODO: popup window asking for assignments and parse them
                     // might be useful to implement backwards link to give context (/ limit choices?)
                     //add=response from popup
                 }
+                double noeFraction = getSample().getAtomFraction(atom1) * getSample().getAtomFraction(atom2);
+                if (noeFraction <= 0) {
+                    add = false;
+                }
+
                 if (add) {
-                    //fixme: what is newScale for?
-                    if (list.noeSet.getConstraints(atom1.getName()+" "+atom2.getName(),true).size()==0) {
-                        Noe noe=new Noe(newPeak,atom1.getSpatialSet(),atom2.getSpatialSet(),1.0);
-                        list.setAddedNoe(noe);
-                        list.noeSet.add(noe);
+                    if (!noeExists(list.noeSet, peakDim1,peakDim2)) {
+                        //fixme: is this an OK use of newScale?
+                        ExperimentNode node1 = acquisitionTree.getNode(expDim, atom1);
+                        ExperimentNode node2 = acquisitionTree.getNode(expDim.getNextExpDim(), atom2);
+                        if (node1 != null && node2 != null) {
+                            Noe noe = new Noe(newPeak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction);
+                            noe.setIntensity(newPeak.getIntensity());
+                            list.setAddedNoe(noe);
+                            list.noeSet.add(noe);
+                            addedPeaks.addAll(list.addNoeToTree(noe));
+                            if (addedPeaks.size() > 0) {
+                                noe.peak = addedPeaks.get(addedPeaks.size() - 1);
+                            } else {
+                                //TODO: implement peakAssign box filter on peakListTree dimNodeMap - then this shouldn't be reached
+                                list.noeSet.get().remove(noe);
+                            }
+                        }
                     }
                 }
             }
         }
+        return addedPeaks;
+    }
+
+    public boolean noeExists(NoeSet noeSet, PeakDim peakDim1,PeakDim peakDim2) {
+        Atom atom1 = ((AtomResonance) peakDim1.getResonance()).getAtom();
+        Atom atom2 = ((AtomResonance) peakDim2.getResonance()).getAtom();
+        for (Noe noe : noeSet.get()) {
+            boolean seen1=false;
+            boolean seen2=false;
+            for (PeakDim testPeakDim : noe.peak.getPeakDims()) {
+                Atom testAtom=((AtomResonance) testPeakDim.getResonance()).getAtom();
+                if (testAtom==atom1 && testPeakDim.getPpmSet()==peakDim1.getPpmSet()) {
+                    seen1=true;
+                }
+                if (testAtom==atom2 && testPeakDim.getPpmSet()==peakDim2.getPpmSet()) {
+                    seen2=true;
+                }
+            }
+            if (seen1 && seen2) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void resetAcquisitionTree() {
         acquisitionTree=null;
     }
 
-    public MTree getAcquisitionTree() {
+    public ExperimentTree getAcquisitionTree() {
         //acquisitionTree nodes (atoms) are contained within generations (expDims) and have edges to connected
         //in the preceding (backward) and following (forward) generations. The weight of each edge is given by the
         //labeling fraction of the first node in the forward direction. If the weight is 0 then the node is not added.
@@ -254,110 +258,42 @@ public class Acquisition {
         if (acquisitionTree!=null) {
             return acquisitionTree;
         }
-        acquisitionTree=new MTree();
-
-        firstNode =acquisitionTree.addNode();
-        lastNode =acquisitionTree.addNode();
-
-        dimAtomNodeMap.clear();
-        dimNodeMap.clear();
+        acquisitionTree=new ExperimentTree();
 
         boolean firstDim=true;
         //populate generations
         for (ExpDim expDim : getExperiment().expDims) {
-            HashMap<Atom, MNode> atomNode = new HashMap<>();
-            Set<MNode> nodeSet = new HashSet<>();
+            HashMap<Atom, ExperimentNode> atomNode = new HashMap<>();
+            Set<ExperimentNode> nodeSet = new HashSet<>();
             for (Atom atom : expDim.getActiveAtoms(getSample().getMolecule())) {
                 double fraction=getSample().getAtomFraction(atom);
                 if (fraction>0) {
-                    MNode mNode = acquisitionTree.addNode();
-                    mNode.setAtom(atom);
-                    atomNode.put(atom, mNode);
-                    nodeSet.add(mNode);
+                    ExperimentNode node = acquisitionTree.addNode(atom,expDim);
+                    node.setAtom(atom);
+                    atomNode.put(atom, node);
+                    nodeSet.add(node);
                     if (firstDim) {
-                        mNode.backwardWeightedEdges.put(firstNode,1.0);
-                        firstNode.forwardWeightedEdges.put(mNode,1.0);
+                        acquisitionTree.addLeadingEdge(node);
                     }
                     if (expDim.getNextExpDim()==null) {
-                            mNode.forwardWeightedEdges.put(lastNode, fraction);
-                            lastNode.backwardWeightedEdges.put(mNode,fraction);
+                        acquisitionTree.addTrailingEdge(node,fraction);
                     }
                 }
             }
-            dimAtomNodeMap.put(expDim, atomNode);
-            dimNodeMap.put(expDim, nodeSet);
         }
         //populate edges
         for (ExpDim expDim : getExperiment().expDims) {
-            for (MNode mNode : dimNodeMap.get(expDim)) {
-                Atom atom=mNode.getAtom();
+            for (ExperimentNode node : acquisitionTree.getNodes(expDim)) {
+                Atom atom=node.getAtom();
                 double fraction=getSample().getAtomFraction(atom);
-                for (Atom connectedAtom : expDim.getConnected(mNode.getAtom())) {
-                    MNode connectedNode = dimAtomNodeMap.get(expDim.getNextExpDim()).get(connectedAtom);
+                for (Atom connectedAtom : expDim.getConnected(node.getAtom())) {
+                    ExperimentNode connectedNode=acquisitionTree.getNode(expDim.getNextExpDim(),connectedAtom);
                     if (connectedNode != null) {
-                        mNode.forwardWeightedEdges.put(connectedNode,fraction);
-                        connectedNode.backwardWeightedEdges.put(mNode,fraction);
+                        acquisitionTree.addEdge(node,connectedNode,fraction);
                     }
                 }
             }
         }
         return acquisitionTree;
     }
-
-    //Probably not needed
-
-    public MNode getFirstNode() {
-        return firstNode;
-    }
-
-    public MNode getLastNode() {
-        return lastNode;
-    }
-
-    public HashMap<ExpDim, HashMap<Atom, MNode>> getDimAtomNodeMap() {
-        return dimAtomNodeMap;
-    }
-
-    public HashMap<ExpDim, Set<MNode>> getDimNodeMap() {
-        return dimNodeMap;
-    }
-
-
-
-/*
-    public MTree getAcquisitionTree () {
-        //acquisition tree nodes are weighted according to the label scheme of the sample
-        if (acquisitionTree!=null) {
-            return acquisitionTree;
-        }
-        acquisitionTree=getExperiment().getExperimentTree().copy();
-        //private HashMap<ExpDim, HashMap<Atom, MNode>> dimAtomNodeMap = new HashMap<>();
-        //private HashMap<ExpDim, Set<MNode>> dimNodeMap = new HashMap<>();
-
-        for (ExpDim expDim : getExperiment().expDims) {
-            for (MNode mNode : getExperiment().getDimNodeMap().get(expDim)) {
-                Atom atom=mNode.getAtom();
-                double fraction=getSample().getAtomFraction(atom);
-                if (fraction>0) {
-                    mNode.weightedEdges.replaceAll((k, v) -> v *= fraction);
-                    //add to atomNodeMap and dimNodeMap for acquisition
-                }
-            }
-        }
-        for (MNode node : acquisitionTree.nodes) {
-            double fraction=getSample().getAtomFraction(node.getAtom());
-            if (fraction==0) {
-
-            } else {
-                node.weightedEdges.replaceAll((k, v) -> v *= fraction);
-            }
-        }
-        return acquisitionTree;
-    }
-
-    public void updateTree(Noe noe) {
-        //when an NOE is added to the NoeSet being watched by this acquisition, work out which additional connections to make. Then work out all additional peaks needed and add them? But the NoeSet is a fn of the peaklist
-        // not the acquisition. The acquisition tree will remain the same. Hmm. PeakList tree is a copy of the acquisition tree! PeakList watches the NoeSet changes! Acquisition tree never updates I guess. PeakList tree knows its sample so can update.
-    }
- */
 }

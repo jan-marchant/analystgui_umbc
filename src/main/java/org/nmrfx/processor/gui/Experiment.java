@@ -5,9 +5,6 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import org.nmrfx.structure.chemistry.Atom;
-import org.nmrfx.structure.chemistry.search.MNode;
-import org.nmrfx.structure.chemistry.search.MTree;
 
 import java.util.*;
 
@@ -42,6 +39,7 @@ public class Experiment {
                     }
                     ExpDim toReturn = following;
                     if (obs) {
+                        following = following.getNextExpDim();
                         while (following != null && !following.isObserved()) {
                             following = following.getNextExpDim();
                         }
@@ -53,23 +51,15 @@ public class Experiment {
             };
         }
     }
-
-    private StringProperty name=new SimpleStringProperty();
-    private ExpDim first;
-    private ExpDim last;
-    private int size;
-    private IntegerProperty numObsDims=new SimpleIntegerProperty();
     public ExpDims expDims = new ExpDims(false);
     public ExpDims obsDims = new ExpDims(true);
 
+    private StringProperty name=new SimpleStringProperty();
+    private int size;
+    private IntegerProperty numObsDims=new SimpleIntegerProperty();
 
-    public int getNumObsDims() {
-        return numObsDims.get();
-    }
-
-    public IntegerProperty numObsDimsProperty() {
-        return numObsDims;
-    }
+    private ExpDim first;
+    private ExpDim last;
 
     public Experiment(String name){
         setName(name);
@@ -77,8 +67,23 @@ public class Experiment {
         numObsDims.set(0);
     }
 
+    @Override
     public String toString() {
         return getName();
+    }
+
+    public String getName() {
+        return name.get();
+    }
+    public int getNumObsDims() {
+        return numObsDims.get();
+    }
+    public IntegerProperty numObsDimsProperty() {
+        return numObsDims;
+    }
+
+    public void setName(String name) {
+        this.name.set(name);
     }
 
     public void remove (boolean prompt) {
@@ -89,16 +94,8 @@ public class Experiment {
 
     }
 
-    public String getName() {
-        return name.get();
-    }
-
     public StringProperty nameProperty() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name.set(name);
     }
 
     public static class Pair {

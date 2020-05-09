@@ -33,19 +33,19 @@ public class MoleculeCouplingList {
 
 
     void initAllBondPaths(int maxLength) {
-        for (MNode node : getBondTree().nodes) {
+        for (MNode node : getBondTree().getNodes()) {
             depthFirst(node,maxLength);
         }
     }
 
     void initAllTocsyPaths(int maxLength,int maxWeightProduct) {
-        for (MNode node : getTocsyTree(3).nodes) {
+        for (MNode node : getTocsyTree(3).getNodes()) {
             depthFirstTransfer(node,maxLength,maxWeightProduct);
         }
     }
 
     void initAllTocsyPaths(int maxLength) {
-        for (MNode node : getTocsyTree(3).nodes) {
+        for (MNode node : getTocsyTree(3).getNodes()) {
             depthFirstTransfer(node,maxLength);
         }
     }
@@ -114,7 +114,7 @@ public class MoleculeCouplingList {
             addPath(length,path);
         }
         if (length<maxLength) {
-            List<MNode> next = parent.nodes;
+            List<MNode> next = parent.getNodes();
             for (MNode child : next) {
                 LinkedList<MNode> next_path=(LinkedList) path.clone();
                 depthFirst(child, maxLength, next_path);
@@ -171,12 +171,13 @@ public class MoleculeCouplingList {
         if (length<maxLength) {
             //List<MNode> next = parent.nodes;
             //for (MNode child : next) {
-            for (int i=0;i<parent.nodes.size();i++) {
-                MNode child=parent.nodes.get(i);
-                Integer next_weight=parent.weights.get(i)*weight;
+            for (int i=0;i<parent.getNodes().size();i++) {
+                MNode child=parent.getNodes().get(i);
+                Integer next_weight=weight;
+                /*Integer next_weight=parent.weights.get(i)*weight;
                 if (next_weight>maxWeightProduct) {
                     continue;
-                }
+                }*/
                 LinkedList<MNode> next_path=(LinkedList) path.clone();
                 depthFirstTransfer(child, maxLength, next_path,next_weight,maxWeightProduct);
             }
@@ -195,19 +196,18 @@ public class MoleculeCouplingList {
         if (length<maxLength) {
             //List<MNode> next = parent.nodes;
             //for (MNode child : next) {
-            for (int i=0;i<parent.nodes.size();i++) {
-                MNode child=parent.nodes.get(i);
-                Integer nextWeight = parent.weights.get(i);
+            for (int i=0;i<parent.getNodes().size();i++) {
+                MNode child=parent.getNodes().get(i);
+                Integer nextWeight=weight;
+                //Integer nextWeight = parent.weights.get(i);
                 //only allow TOCSY transfer for equivalent couplings (as judged by bond distance).
-                if (weight==null || weight==nextWeight) {
+                //if (weight==null || weight==nextWeight) {
                     LinkedList<MNode> next_path = (LinkedList) path.clone();
                     depthFirstTransfer(child, maxLength, next_path, nextWeight);
-                }
+                //}
             }
         }
     }
-
-
 
     private MTree getBondTree() {
         if (bondTree == null) {
@@ -251,7 +251,8 @@ public class MoleculeCouplingList {
                             Integer iNodeBegin = (Integer) atomNode.get(atom1);
                             Integer iNodeEnd = (Integer) atomNode.get(atom2);
                             if ((iNodeBegin != null) && (iNodeEnd != null)) {
-                                tocsyTree.addEdge(iNodeBegin.intValue(), iNodeEnd.intValue(), false,j);
+                                //tocsyTree.addEdge(iNodeBegin.intValue(), iNodeEnd.intValue(), false,j);
+                                tocsyTree.addEdge(iNodeBegin.intValue(), iNodeEnd.intValue(), false);
                             }
                         }
                     } catch (Exception e) {

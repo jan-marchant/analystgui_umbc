@@ -35,23 +35,10 @@ public class ExpDim {
     private Connectivity nextCon;
     private Connectivity previousCon;
     private Nuclei nucleus;
-    private HashMap<Molecule, HashMap<Atom,String>> molAtomMap;
-    static Pattern matchPattern = Pattern.compile("^(\\*|[A-z]*)\\((\\*|[A-z])\\)\\.([^,:]*)(?::([0-9\\.]*))?$");
-    ArrayList<Match> matches=new ArrayList<>();
-    static HashMap<String, HashMap<String, ArrayList<String>>> resMap = new HashMap<>();
-
-    private class Match {
-        String resType;
-        String resId;
-        String atomPat;
-        double fraction;
-        public Match (String resType,String resId,String atomPat,double fraction) {
-            this.resType=resType;
-            this.resId=resId;
-            this.atomPat=atomPat;
-            this.fraction=fraction;
-        }
-    }
+    private HashMap<Molecule, HashMap<Atom,String>> molAtomMap=new HashMap<>();
+    private static Pattern matchPattern = Pattern.compile("^(\\*|[A-z]*)(?:\\((\\*|[A-z])\\))?\\.([^,:]*)(?::([0-9\\.]*))?$");
+    private static HashMap<String, HashMap<String, ArrayList<String>>> resMap = new HashMap<>();
+    private ArrayList<Match> matches=new ArrayList<>();
 
     public ExpDim(Nuclei nucleus,Boolean observed) {
         this.observed=observed;
@@ -78,34 +65,44 @@ public class ExpDim {
         parsePattern();
     }
 
+    private void initMolAtomMap(Molecule mol) {
+        HashMap<Atom,String> activeAtoms=new HashMap<>();
+        molAtomMap.put(mol,activeAtoms);
+        for (Atom atom : mol.getAtoms()) {
+            if (atom.getElementName()!=nucleus.getName()) {
+                continue;
+            }
+            Entity entity=atom.getEntity();
+            String oneLetter;
+            if (entity instanceof Residue) {
+                oneLetter=String.valueOf(((Residue) entity).getOneLetter());
+            } else {
+                oneLetter=null;
+            }
+            for (Match match : matches) {
+                if (match.resType.equalsIgnoreCase("*") || match.resType.equalsIgnoreCase(entity.getName()) || match.resType.equalsIgnoreCase(oneLetter)) {
+                    //resId irrelevant here but probably worth saving
+                    String testPat;
+                    if (match.atomPat.substring(0,nucleus.getName().length()).equalsIgnoreCase(nucleus.getName())) {
+                        testPat = match.atomPat.substring(nucleus.getName().length());
+                    } else {
+                        testPat=match.atomPat;
+                    }
+                    if (testPat.equalsIgnoreCase("*") || match.atomPat.equalsIgnoreCase(atom.getName()) || patternShortcuts(entity.getName(),atom.getName(),testPat)) {
+                        activeAtoms.put(atom,match.resId);
+                    }
+                }
+            }
+        }
+    }
+
+    public Nuclei getNucleus() {
+        return nucleus;
+    }
+
     public Boolean isObserved() {
         return observed;
     }
-
-    public ExpDim getNextExpDim(boolean forward) {
-        if (forward) {
-            return nextExpDim;
-        } else {
-            return previousExpDim;
-        }
-    }
-
-    public Connectivity getNextCon(boolean forward) {
-        if (forward) {
-            return nextCon;
-        } else {
-            return previousCon;
-        }
-    }
-
-    public ExpDim getNextExpDim() {
-        return getNextExpDim(true);
-    }
-
-    public Connectivity getNextCon() {
-        return getNextCon(true);
-    }
-
 
     public void setNext(Connectivity nextCon,ExpDim nextExpDim) {
         this.nextCon = nextCon;
@@ -114,8 +111,61 @@ public class ExpDim {
         nextExpDim.previousExpDim=this;
     }
 
+    public ExpDim getNextExpDim() {
+        return getNextExpDim(true);
+    }
+    public ExpDim getNextExpDim(boolean forward) {
+        if (forward) {
+            return nextExpDim;
+        } else {
+            return previousExpDim;
+        }
+    }
+
+    public Connectivity getNextCon() {
+        return getNextCon(true);
+    }
+    public Connectivity getNextCon(boolean forward) {
+        if (forward) {
+            return nextCon;
+        } else {
+            return previousCon;
+        }
+    }
+
+    public Set<Atom> getActiveAtoms(Molecule mol) {
+        if (!molAtomMap.containsKey(mol)) {
+            initMolAtomMap(mol);
+        }
+        return molAtomMap.get(mol).keySet();
+    }
+    public List<Atom> getConnected(Atom atom) {
+        ArrayList<Atom> atomList=new ArrayList<>();
+        if (getNextCon()!=null) {
+            for (Atom connectedAtom : getNextCon().getConnections(atom)) {
+                if (resPat(atom) == "*" || nextExpDim.resPat(connectedAtom) == "*" ||
+                        (resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom)) && atom.getEntity()==connectedAtom.getEntity()) || (!resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom)) && atom.getEntity()!=connectedAtom.getEntity())) {
+                    atomList.add(connectedAtom);
+                }
+            }
+        }
+        return atomList;
+    }
+
+    private class Match {
+        String resType;
+        String resId;
+        String atomPat;
+        double fraction;
+        public Match (String resType,String resId,String atomPat,double fraction) {
+            this.resType=resType;
+            this.resId=resId;
+            this.atomPat=atomPat;
+            this.fraction=fraction;
+        }
+    }
+
     private void parsePattern() {
-        //pattern is e.g. A(i).H2,*(i).h* - residue type followed by index in brackets. For NOESY: *(*).* will do - (nucleus set to 1H). comma separated
         for (String group : pattern.split(",")) {
             Matcher matcher = matchPattern.matcher(group.trim());
             if (!matcher.matches()) {
@@ -124,6 +174,9 @@ public class ExpDim {
             }
             String resType = matcher.group(1);
             String resId = matcher.group(2);
+            if (resId==null) {
+                resId="*";
+            }
             String atomPat = matcher.group(3);
             String fractionPat = matcher.group(4);
             double fraction;
@@ -136,46 +189,7 @@ public class ExpDim {
         }
     }
 
-    public Set<Atom> getActiveAtoms(Molecule mol) {
-        if (!molAtomMap.containsKey(mol)) {
-            initMolAtomMap(mol);
-        }
-        return molAtomMap.get(mol).keySet();
-    }
-
-    private void initMolAtomMap(Molecule mol) {
-        HashMap<Atom,String> activeAtoms=new HashMap<>();
-        molAtomMap.put(mol,activeAtoms);
-        for (Atom atom : mol.getAtoms()) {
-            Entity entity=atom.getEntity();
-            String oneLetter;
-            if (entity instanceof Residue) {
-                oneLetter=String.valueOf(((Residue) entity).getOneLetter());
-            } else {
-                oneLetter=null;
-            }
-            for (Match match : matches) {
-                if (match.resType=="*" || match.resType.equalsIgnoreCase(entity.getName()) || match.resType.equalsIgnoreCase(oneLetter)) {
-                    //resId irrelevant here but probably worth saving
-                    String testPat;
-                    if (match.atomPat.substring(0,nucleus.getName().length()).equalsIgnoreCase(nucleus.getName())) {
-                        testPat = match.atomPat.substring(nucleus.getName().length());
-                    } else {
-                        testPat=match.atomPat;
-                    }
-                    if (testPat=="*" || match.atomPat.equalsIgnoreCase(atom.getName()) || patternShortcuts(entity.getName(),atom.getName(),testPat)) {
-                        activeAtoms.put(atom,match.resId);
-                    }
-                }
-            }
-        }
-    }
-
-    public Nuclei getNucleus() {
-        return nucleus;
-    }
-
-    public String resPat(Atom atom) {
+    private String resPat(Atom atom) {
         Molecule mol=atom.getTopEntity().molecule;
         if (!molAtomMap.containsKey(mol)) {
             initMolAtomMap(mol);
@@ -183,20 +197,10 @@ public class ExpDim {
         return molAtomMap.get(mol).get(atom);
     }
 
-    public List<Atom> getConnected(Atom atom) {
-        ArrayList<Atom> atomList=new ArrayList<>();
-        for (Atom connectedAtom : getNextCon().getConnections(atom)) {
-            if (resPat(atom)=="*" || nextExpDim.resPat(connectedAtom)=="*" || resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom))) {
-                atomList.add(connectedAtom);
-            }
-        }
-        return atomList;
-    }
-
     public static boolean patternShortcuts(String entityName,String atomName,String testPat) {
         if (resMap.containsKey(entityName.toLowerCase()) &&
                 resMap.get(entityName.toLowerCase()).containsKey(testPat.toLowerCase()) &&
-                resMap.get(entityName.toLowerCase()).get(testPat.toLowerCase()).contains(testPat.toLowerCase())) {
+                resMap.get(entityName.toLowerCase()).get(testPat.toLowerCase()).contains(atomName.toLowerCase())) {
             return true;
         } else {
             return false;

@@ -4,12 +4,10 @@ import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.structure.chemistry.constraints.Noe;
+import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class ManagedPeak extends Peak {
     private Set<Noe> noes=new HashSet<>();
@@ -18,13 +16,23 @@ public class ManagedPeak extends Peak {
         super(nDim);
     }
 
-    public ManagedPeak(PeakList peakList, int nDim,Set<Noe> noes) {
+    public ManagedPeak(PeakList peakList, int nDim, Set<Noe> noes, HashMap<Integer,PeakDim> peakDims) {
         super(peakList, nDim);
         this.noes=noes;
+        //use NOE array to set resonances of NOE dims. But what about non NOE dims?
+        for (int i = 0; i < nDim; i++) {
+            peakDims.get(i).copyTo(this.getPeakDim(i));
+            this.getPeakDim(i).setResonance(peakDims.get(i).getResonance());
+            //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
+            this.getPeakDim(i).getResonance().add(this.getPeakDim(i));
+        }
+
         ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-            for (Noe removedNoe : c.getRemoved()) {
-                if (noes.contains(removedNoe)) {
-                    remove();
+            while (c.next()) {
+                for (Noe removedNoe : c.getRemoved()) {
+                    if (this.noes.contains(removedNoe)) {
+                        remove();
+                    }
                 }
             }
         });
@@ -40,9 +48,11 @@ public class ManagedPeak extends Peak {
             peak.getPeakDim(i).getResonance().add(this.getPeakDim(i));
         }
         ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-            for (Noe removedNoe : c.getRemoved()) {
-                if (noes.contains(removedNoe)) {
-                    remove();
+            while (c.next()) {
+                for (Noe removedNoe : c.getRemoved()) {
+                    if (noes.contains(removedNoe)) {
+                        remove();
+                    }
                 }
             }
         });
@@ -51,9 +61,11 @@ public class ManagedPeak extends Peak {
     public ManagedPeak(PeakList peakList, int nDim) {
         super(peakList, nDim);
         ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-            for (Noe removedNoe : c.getRemoved()) {
-                if (noes.contains(removedNoe)) {
-                    remove();
+            while (c.next()) {
+                for (Noe removedNoe : c.getRemoved()) {
+                    if (noes.contains(removedNoe)) {
+                        remove();
+                    }
                 }
             }
         });
@@ -71,13 +83,18 @@ public class ManagedPeak extends Peak {
             //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
             peak.getPeakDim(i).getResonance().add(this.getPeakDim(i));
         }
-        ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-            for (Noe removedNoe : c.getRemoved()) {
-                if (noes.contains(removedNoe)) {
-                    remove();
+        NoeSet noeSet=((ManagedList) peakList).noeSet;
+        if (noeSet!=null) {
+            noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
+                while (c.next()) {
+                    for (Noe removedNoe : c.getRemoved()) {
+                        if (noes.contains(removedNoe)) {
+                            remove();
+                        }
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     @Override
