@@ -143,13 +143,18 @@ public class ExpDim {
         ArrayList<Atom> atomList=new ArrayList<>();
         if (getNextCon()!=null) {
             for (Atom connectedAtom : getNextCon().getConnections(atom)) {
-                if (resPat(atom) == "*" || nextExpDim.resPat(connectedAtom) == "*" ||
-                        (resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom)) && atom.getEntity()==connectedAtom.getEntity()) || (!resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom)) && atom.getEntity()!=connectedAtom.getEntity())) {
+                if (resPatMatches(atom,connectedAtom)) {
                     atomList.add(connectedAtom);
                 }
             }
         }
         return atomList;
+    }
+
+    public boolean resPatMatches(Atom atom,Atom connectedAtom) {
+        return (resPat(atom) == "*" || nextExpDim.resPat(connectedAtom) == "*" ||
+                (resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom)) && atom.getEntity()==connectedAtom.getEntity())
+                || (!resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom)) && atom.getEntity()!=connectedAtom.getEntity()));
     }
 
     private class Match {

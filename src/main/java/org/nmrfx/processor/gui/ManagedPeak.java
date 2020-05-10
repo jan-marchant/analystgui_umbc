@@ -3,6 +3,7 @@ package org.nmrfx.processor.gui;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import org.nmrfx.processor.datasets.peaks.*;
+import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
@@ -16,13 +17,15 @@ public class ManagedPeak extends Peak {
         super(nDim);
     }
 
-    public ManagedPeak(PeakList peakList, int nDim, Set<Noe> noes, HashMap<Integer,PeakDim> peakDims) {
+    public ManagedPeak(PeakList peakList, int nDim, Set<Noe> noes, HashMap<Integer, Atom> atoms) {
         super(peakList, nDim);
         this.noes=noes;
         //use NOE array to set resonances of NOE dims. But what about non NOE dims?
         for (int i = 0; i < nDim; i++) {
-            peakDims.get(i).copyTo(this.getPeakDim(i));
-            this.getPeakDim(i).setResonance(peakDims.get(i).getResonance());
+            //todo: ensure atom resonance set, choose PeakDim with more discrimination!
+            PeakDim refPeakDim=atoms.get(i).getResonance().getPeakDims().get(0);
+            refPeakDim.copyTo(this.getPeakDim(i));
+            this.getPeakDim(i).setResonance(refPeakDim.getResonance());
             //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
             this.getPeakDim(i).getResonance().add(this.getPeakDim(i));
         }

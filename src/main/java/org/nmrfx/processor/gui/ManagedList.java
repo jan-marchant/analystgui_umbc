@@ -1,6 +1,6 @@
 package org.nmrfx.processor.gui;
 
-import javafx.collections.ListChangeListener;
+import javafx.collections.SetChangeListener;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.processor.datasets.peaks.*;
@@ -9,8 +9,6 @@ import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
-import org.nmrfx.structure.chemistry.search.MNode;
-import org.nmrfx.structure.chemistry.search.MTree;
 import org.nmrfx.utils.GUIUtils;
 
 import java.util.*;
@@ -33,7 +31,6 @@ public class ManagedList extends PeakList {
     //probably don't need this type - just the noeSet which can be passed by managedListSetup
     public Connectivity.NOETYPE noeType;
     public NoeSet noeSet;
-    private ExperimentTree peakListTree;
     private Noe addedNoe=null;
     //private ManagedPeak addedPeak=null;
 
@@ -44,12 +41,13 @@ public class ManagedList extends PeakList {
         this.acquisition = acquisition;
         this.ppmSet = ppmSet;
         this.rPpmSet = rPpmset;
+        this.noise = acquisition.getDataset().guessNoiseLevel();
+        //this.highestSignal=acquisition.getDataset().extremeValue();
         this.noeType = noeType;
         if (this.noeType!=null) {
             noeSet= UmbcProject.getNoeSet(acquisition.getSample().getMolecule(),noeType,ppmSet);
         }
-        this.noise = acquisition.getDataset().guessNoiseLevel();
-        //this.highestSignal=acquisition.getDataset().extremeValue();
+        acquisition.getAcqTree().addNoeSet(noeSet);
         //fixme - implement expDim mapping (during acquisition setup - popup if not clear on experiment choice)
         int i = 0;
         for (ExpDim expDim : acquisition.getExperiment().obsDims) {
@@ -57,16 +55,12 @@ public class ManagedList extends PeakList {
             i++;
         }
         initializeList(acquisition.getDataset());
-        initPeakListTree();
-        if (noeSet!=null) {
-            noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-                while (c.next()) {
-                    for (Noe addedNoe : c.getAddedSubList()) {
-                        addNoeToTree(addedNoe,true);
-                    }
-                }
-            });
-        }
+        addPeaks();
+        acquisition.getAcqTree().getEdges().addListener((SetChangeListener.Change<? extends AcqTree.Edge> c) -> {
+            if (c.wasAdded()) {
+                addEdgeToList(c.getElementAdded(),true);
+            }
+        });
     }
 
     public ManagedList(LabelDataset labelDataset) {
@@ -200,7 +194,9 @@ public class ManagedList extends PeakList {
             //peakpicker doAssign() only sets labels - possible fixme
             for (PeakDim peakDim : newPeak.getPeakDims()) {
                 resonance=(AtomResonance) peakDim.getResonance();
-                resonance.setAtom(acquisition.getSample().getMolecule().findAtom(peakDim.getLabel()));
+                Atom atom=acquisition.getSample().getMolecule().findAtom(peakDim.getLabel());
+                resonance.setAtom(atom);
+                atom.setResonance(resonance);
             }
         }
         //TODO: repick from existing NOEs taking new detection limit into account
@@ -292,179 +288,62 @@ public class ManagedList extends PeakList {
         return detailArray;
     }
 
-    public ExperimentTree getPeakListTree () {
-        if (peakListTree == null) {
-            initPeakListTree();
-        }
-        return peakListTree;
-    }
-
-    private List<ManagedPeak> initPeakListTree () {
-        //may have multiple NOEsets per acquisition (normally not I expect).
-        peakListTree=acquisition.getAcquisitionTree().copy();
-        //need a local mNode Map!! Otherwise adding edges for all peaklists.
-        List<ManagedPeak> addedPeaks=new ArrayList<>();
-        //Need to update NOE dims from NOE set
-        if (noeSet!=null) {
-            for (Noe noe : noeSet.get()) {
-                addedPeaks.addAll(addNoeToTree(noe));
-            }
-        } else {
-            addedPeaks.addAll(addPeaksMiddleOut(acquisition.getDimNodeMap(),null,null,new HashMap<>(),new HashSet<>(),null,new ArrayList<>(),null,null,true));
-        }
-        return addedPeaks;
-    }
-
-    private void addNoeToTree(Noe noe,boolean checkNoe) {
-        if (checkNoe && noe==addedNoe) {
+    private void addEdgeToList(AcqTree.Edge edge, boolean check) {
+        if (check && edge.noe==addedNoe) {
             addedNoe=null;
             return;
         }
-        addNoeToTree(noe);
+        addPeaks(edge);
         return;
     }
 
-    public List<ManagedPeak> addNoeToTree(Noe noe) {
-        List<ManagedPeak> addedPeaks=new ArrayList<>();
-        if (peakListTree==null) {
-            return initPeakListTree();
-            //added noe is already in noeSet, and so has been added by above. This should never be reached!
-        }
-        HashMap<ExpDim,Set<MNode>> localDimNodeMap = new HashMap<>();
-        for (ExpDim expDim : acquisition.getExperiment().expDims) {
-            if (expDim.getNextCon()!=null && (expDim.getNextCon().type==Connectivity.TYPE.NOE)) {
-                Set<MNode> nodeSet = new HashSet<>();
-                localDimNodeMap.put(expDim, nodeSet);
-
-                Set<MNode> nodeSet2 = new HashSet<>();
-                localDimNodeMap.put(expDim.getNextExpDim(), nodeSet2);
-
-                for (ExpDim otherExpDim : acquisition.getExperiment().expDims) {
-                    if (otherExpDim!=expDim && otherExpDim!=expDim.getNextExpDim()) {
-                        //take care not to modify this set
-                        localDimNodeMap.put(otherExpDim,acquisition.getDimNodeMap().get(otherExpDim));
-                    }
-                }
-                //fixme: this is not appropriate for SpatialSetGroups with more than one atom (i.e. ambiguous peak assignments)
-                Atom atom1=noe.spg1.getAnAtom();
-                Atom atom2=noe.spg2.getAnAtom();
-                double intensity = noe.getIntensity()/noe.getScale();
-                //fixme: AWOOGA. Adding edges to acquisitionTree. May as well not have a peakListTree! Need a copy function. But then need a node node mapping
-                // for adding resonances.... Maybe just have to say one peaklist type per acquisition :-( (but can still have multiple ppm sets)
-                MNode mNode = acquisition.getDimAtomNodeMap().get(expDim).get(atom1);
-                MNode mNode2 = acquisition.getDimAtomNodeMap().get(expDim.getNextExpDim()).get(atom2);
-                //add edge weighted by intensity and labelling
-                if (mNode != null && mNode2 != null) {
-                    //check if already connected
-                    if (!mNode.forwardWeightedEdges.containsKey(mNode2)) {
-                        mNode.forwardWeightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
-                        mNode2.backwardWeightedEdges.put(mNode, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
-                        nodeSet.add(mNode);
-                        nodeSet2.add(mNode2);
-                    }
-                }
-                mNode = acquisition.getDimAtomNodeMap().get(expDim).get(noe.spg2.getAnAtom());
-                mNode2 = acquisition.getDimAtomNodeMap().get(expDim.getNextExpDim()).get(noe.spg1.getAnAtom());
-                //add edge weighted by intensity and labelling
-                if (mNode != null && mNode2 != null) {
-                    if (!mNode.forwardWeightedEdges.containsKey(mNode2)) {
-                        mNode.forwardWeightedEdges.put(mNode2, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
-                        mNode2.backwardWeightedEdges.put(mNode, intensity * acquisition.getSample().getAtomFraction(mNode.getAtom()));
-                        nodeSet.add(mNode);
-                        nodeSet2.add(mNode2);
-                    }
-                }
-                //add peak based on localDimNodeMap
-                addedPeaks.addAll(addPeaksMiddleOut(localDimNodeMap,acquisition.getFirstNode(),null,new HashMap<>(),new HashSet<>(),null,new ArrayList<>(),null,null,true));
-
-                localDimNodeMap.clear();
+    public List<ManagedPeak> addNoeToList(Noe noe) {
+        List<ManagedPeak> addedPeaks = new ArrayList<>();
+        for (AcqNode node : acquisition.getAcqTree().getNodes(noe.spg1.getAnAtom())) {
+            for (AcqTree.Edge edge : node.getEdges(noeSet,noe)) {
+                addedPeaks.addAll(addPeaks(edge));
             }
         }
         return addedPeaks;
     }
 
-    private List<ManagedPeak> addPeaksMiddleOut(HashMap<ExpDim, Set<MNode>> dimNodeMap, MNode node, ExpDim expDim, HashMap<Integer,PeakDim> peakDimMap, Set<Noe> noeArray, Double peakIntensity, List<ManagedPeak> addedPeaks, MNode startNode, ExpDim startDim, boolean forward) {
-        //TODO: deal with pick intensity more carefully
-        if (peakIntensity!=null && peakIntensity<pickThreshold()) {
-            return addedPeaks;
-        }
-        //if I had a reverse nodeDimMap wouldn't need to keep track of expDims...
-        if (startNode==null) {
-            //initial setup
-            ExpDim smallestDim=null;
-            int min=Integer.MAX_VALUE;
-            for (ExpDim testExpDim:acquisition.getExperiment().expDims) {
-                int size=dimNodeMap.get(testExpDim).size();
-                if (size<min) {
-                    smallestDim=testExpDim;
-                    min=size;
-                }
-            }
-            for (MNode startingNode : dimNodeMap.get(smallestDim)) {
-                addPeaksMiddleOut(dimNodeMap, startingNode, smallestDim, new HashMap<>(), new HashSet<>(), peakIntensity, addedPeaks, startingNode,smallestDim,forward);
-            }
-            return addedPeaks;
-        }
-        if (expDim!=null) {
-            if (expDim.isObserved()) {
-                //TODO: consider should this be restricted per ppmSet?
-                if (!node.ppmSetPeakDimMap.containsKey(ppmSet)) {
-                    return addedPeaks;
-                }
-                peakDimMap.put(dimMap.get(expDim), node.ppmSetPeakDimMap.get(ppmSet));
-            }
-        }
-        HashMap<MNode,Double> edges;
-        if (forward==true) {
-            edges=node.forwardWeightedEdges;
+    private List<ManagedPeak> addPeaks() {
+        return addPeaks(null);
+    }
+    private List<ManagedPeak> addPeaks(AcqTree.Edge firstEdge) {
+        ArrayList<ManagedPeak> addedPeaks=new ArrayList<>();
+        AcqNode startNode;
+        if (firstEdge==null) {
+            startNode=null;
         } else {
-            edges=node.backwardWeightedEdges;
+            startNode=firstEdge.getNode();
         }
-        for (MNode nextNode : edges.keySet()) {
-            if (nextNode==acquisition.getFirstNode()) {
-                if (peakDimMap.size()!=this.nDim) {
-                    System.out.println("Unexpected error adding peak to "+this.getName());
-                    return addedPeaks;
-                }
-
-                ManagedPeak newPeak=new ManagedPeak(this,this.nDim,noeArray,peakDimMap);
-                peaks().add(newPeak);
-                this.reIndex();
-                newPeak.setIntensity(peakIntensity.floatValue());
-                addedPeaks.add(newPeak);
-                return addedPeaks;
-            }
-            if (peakIntensity==null) {
-                peakIntensity=1.0;
-            }
-            ExpDim nextExpDim;
-            if (nextNode==acquisition.getLastNode()) {
-                peakIntensity*=edges.get(acquisition.getLastNode());
-                nextNode=startNode;
-                nextExpDim=startDim;
-                addPeaksMiddleOut(dimNodeMap, nextNode, nextExpDim, peakDimMap, noeArray, peakIntensity, addedPeaks, startNode, startDim, false);
-            } else {
-                nextExpDim = expDim.getNextExpDim(forward);
-                HashMap<Integer,PeakDim> nextPeakDimMap=new HashMap<>();
-                for (int i : peakDimMap.keySet()) {
-                    nextPeakDimMap.put(i,peakDimMap.get(i));
-                }
-                if (dimNodeMap.get(nextExpDim).contains(nextNode)) {
-                    double nextPeakIntensity = peakIntensity * node.forwardWeightedEdges.get(nextNode);
-                    if (expDim.getNextCon(forward).type == Connectivity.TYPE.NOE) {
-                        for (Noe noe : noeSet.getConstraints(node.getAtom() + " " + nextNode.getAtom(), true)) {
-                            Set<Noe> nextNoeArray = new HashSet<>();
-                            nextNoeArray.addAll(noeArray);
-                            nextNoeArray.add(noe);
-                            addPeaksMiddleOut(dimNodeMap, nextNode, nextExpDim, nextPeakDimMap, nextNoeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
-                        }
-                    } else {
-                        addPeaksMiddleOut(dimNodeMap, nextNode, nextExpDim, nextPeakDimMap, noeArray, nextPeakIntensity, addedPeaks, startNode, startDim, forward);
-                    }
-                }
-            }
+        for (HashMap<ExpDim, AcqTree.Edge> path :
+                acquisition.getAcqTree().getPathEdgesMiddleOut(firstEdge,true,startNode,startNode,new HashMap<>(),new ArrayList<>(), this.noeSet)) {
+            addedPeaks.add(addPeakFromPath(path));
         }
         return addedPeaks;
+    }
+
+    private ManagedPeak addPeakFromPath(HashMap<ExpDim, AcqTree.Edge> path) {
+        Double peakIntensity=1.0;
+        Set<Noe> noes=new HashSet<>();
+        HashMap<Integer,Atom> atoms=new HashMap<>();
+        for (ExpDim expDim : acquisition.getExperiment().expDims) {
+            AcqTree.Edge edge=path.get(expDim);
+            peakIntensity*=edge.weight;
+            if (expDim.isObserved()) {
+                atoms.put(dimMap.get(expDim),edge.getNode().getAtom());
+            }
+            if (expDim.getNextCon()!=null && expDim.getNextCon().type==Connectivity.TYPE.NOE) {
+                noes.add(edge.noe);
+            }
+        }
+        ManagedPeak newPeak = new ManagedPeak(this, this.nDim, noes, atoms);
+        peaks().add(newPeak);
+        this.reIndex();
+        newPeak.setIntensity(peakIntensity.floatValue());
+        return newPeak;
     }
 
     public HashMap<ExpDim, Integer> getDimMap() {
@@ -479,7 +358,7 @@ public class ManagedList extends PeakList {
         return ppmSet;
     }
 
-    public int getrPpmSet() {
+    public int getRPpmSet() {
         return rPpmSet;
     }
 }

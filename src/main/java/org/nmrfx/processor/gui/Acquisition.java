@@ -14,10 +14,9 @@ import org.nmrfx.processor.datasets.peaks.Peak;
 import org.nmrfx.processor.datasets.peaks.PeakDim;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Atom;
+import org.nmrfx.structure.chemistry.Molecule;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
-import org.nmrfx.structure.chemistry.search.MNode;
-import org.nmrfx.structure.chemistry.search.MTree;
 import org.nmrfx.utils.GUIUtils;
 
 import java.util.*;
@@ -33,7 +32,7 @@ public class Acquisition {
     private ListProperty<ManagedList> managedLists = new SimpleListProperty<>(managedListsList);
     private ListProperty<Experiment> validExperiments = new SimpleListProperty<>(validExperimentList);
     private Double sensitivity;
-    private ExperimentTree acquisitionTree;
+    private AcqTree acqTree;
 
     public Acquisition() {
         project=UmbcProject.getActive();
@@ -185,9 +184,6 @@ public class Acquisition {
                     atom2 = ((AtomResonance) peakDim2.getResonance()).getAtom();
                 }
                 boolean add = true;
-                if (!expDim.getConnected(atom1).contains(atom2)) {
-                    add=false;
-                }
                 if (atom1 == null || atom2 == null) {
                     add = false;
                     //TODO: popup window asking for assignments and parse them
@@ -198,18 +194,20 @@ public class Acquisition {
                 if (noeFraction <= 0) {
                     add = false;
                 }
-
+                if (!expDim.resPatMatches(atom1,atom2)) {
+                    add=false;
+                }
                 if (add) {
                     if (!noeExists(list.noeSet, peakDim1,peakDim2)) {
                         //fixme: is this an OK use of newScale?
-                        ExperimentNode node1 = acquisitionTree.getNode(expDim, atom1);
-                        ExperimentNode node2 = acquisitionTree.getNode(expDim.getNextExpDim(), atom2);
+                        AcqNode node1 = acqTree.getNode(expDim, atom1);
+                        AcqNode node2 = acqTree.getNode(expDim.getNextExpDim(), atom2);
                         if (node1 != null && node2 != null) {
-                            Noe noe = new Noe(newPeak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction);
+                            Noe noe = new Noe(newPeak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction,peakDim1,peakDim2);
                             noe.setIntensity(newPeak.getIntensity());
                             list.setAddedNoe(noe);
                             list.noeSet.add(noe);
-                            addedPeaks.addAll(list.addNoeToTree(noe));
+                            addedPeaks.addAll(list.addNoeToList(noe));
                             if (addedPeaks.size() > 0) {
                                 noe.peak = addedPeaks.get(addedPeaks.size() - 1);
                             } else {
@@ -232,10 +230,10 @@ public class Acquisition {
             boolean seen2=false;
             for (PeakDim testPeakDim : noe.peak.getPeakDims()) {
                 Atom testAtom=((AtomResonance) testPeakDim.getResonance()).getAtom();
-                if (testAtom==atom1 && testPeakDim.getPpmSet()==peakDim1.getPpmSet()) {
+                if (testAtom==atom1 && testPeakDim.getChemShiftSet()==peakDim1.getChemShiftSet()) {
                     seen1=true;
                 }
-                if (testAtom==atom2 && testPeakDim.getPpmSet()==peakDim2.getPpmSet()) {
+                if (testAtom==atom2 && testPeakDim.getChemShiftSet()==peakDim2.getChemShiftSet()) {
                     seen2=true;
                 }
             }
@@ -247,53 +245,53 @@ public class Acquisition {
     }
 
     public void resetAcquisitionTree() {
-        acquisitionTree=null;
+        acqTree =null;
     }
 
-    public ExperimentTree getAcquisitionTree() {
+    public AcqTree getAcqTree() {
         //acquisitionTree nodes (atoms) are contained within generations (expDims) and have edges to connected
         //in the preceding (backward) and following (forward) generations. The weight of each edge is given by the
         //labeling fraction of the first node in the forward direction. If the weight is 0 then the node is not added.
         //
-        if (acquisitionTree!=null) {
-            return acquisitionTree;
+        if (acqTree !=null) {
+            return acqTree;
         }
-        acquisitionTree=new ExperimentTree();
+        acqTree =new AcqTree(this);
 
         boolean firstDim=true;
         //populate generations
         for (ExpDim expDim : getExperiment().expDims) {
-            HashMap<Atom, ExperimentNode> atomNode = new HashMap<>();
-            Set<ExperimentNode> nodeSet = new HashSet<>();
+            HashMap<Atom, AcqNode> atomNode = new HashMap<>();
+            Set<AcqNode> nodeSet = new HashSet<>();
             for (Atom atom : expDim.getActiveAtoms(getSample().getMolecule())) {
                 double fraction=getSample().getAtomFraction(atom);
                 if (fraction>0) {
-                    ExperimentNode node = acquisitionTree.addNode(atom,expDim);
+                    AcqNode node = acqTree.addNode(atom,expDim);
                     node.setAtom(atom);
                     atomNode.put(atom, node);
                     nodeSet.add(node);
                     if (firstDim) {
-                        acquisitionTree.addLeadingEdge(node);
+                        acqTree.addLeadingEdge(node);
                     }
                     if (expDim.getNextExpDim()==null) {
-                        acquisitionTree.addTrailingEdge(node,fraction);
+                        acqTree.addTrailingEdge(node,fraction);
                     }
                 }
             }
         }
         //populate edges
-        for (ExpDim expDim : getExperiment().expDims) {
-            for (ExperimentNode node : acquisitionTree.getNodes(expDim)) {
-                Atom atom=node.getAtom();
-                double fraction=getSample().getAtomFraction(atom);
-                for (Atom connectedAtom : expDim.getConnected(node.getAtom())) {
-                    ExperimentNode connectedNode=acquisitionTree.getNode(expDim.getNextExpDim(),connectedAtom);
+        for (AcqNode node : acqTree.getNodes()) {
+            Atom atom=node.getAtom();
+            if (atom!=null) {
+                for (Atom connectedAtom : node.getExpDim().getConnected(atom)) {
+                    AcqNode connectedNode = acqTree.getNode(node.getNextExpDim(), connectedAtom);
                     if (connectedNode != null) {
-                        acquisitionTree.addEdge(node,connectedNode,fraction);
+                        double weight = getSample().getAtomFraction(atom);
+                        acqTree.addEdge(node, connectedNode, weight);
                     }
                 }
             }
         }
-        return acquisitionTree;
+        return acqTree;
     }
 }
