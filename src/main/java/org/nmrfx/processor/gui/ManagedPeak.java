@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.structure.chemistry.Atom;
+import org.nmrfx.structure.chemistry.PPMv;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
@@ -20,25 +21,73 @@ public class ManagedPeak extends Peak {
     public ManagedPeak(PeakList peakList, int nDim, Set<Noe> noes, HashMap<Integer, Atom> atoms) {
         super(peakList, nDim);
         this.noes=noes;
+        initPeakDimContribs();
         //use NOE array to set resonances of NOE dims. But what about non NOE dims?
         for (int i = 0; i < nDim; i++) {
             //todo: ensure atom resonance set, choose PeakDim with more discrimination!
-            PeakDim refPeakDim=atoms.get(i).getResonance().getPeakDims().get(0);
-            refPeakDim.copyTo(this.getPeakDim(i));
-            this.getPeakDim(i).setResonance(refPeakDim.getResonance());
-            //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
-            this.getPeakDim(i).getResonance().add(this.getPeakDim(i));
-        }
-
-        ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-            while (c.next()) {
-                for (Noe removedNoe : c.getRemoved()) {
-                    if (this.noes.contains(removedNoe)) {
-                        remove();
-                    }
+            boolean done=false;
+            PeakDim refPeakDim=getPeakDim(i);
+            for (Noe noe : noes) {
+                if (noe.spg1.getAnAtom()==atoms.get(i)) {
+                    refPeakDim=noe.getPeakDim1();
+                    done=true;
+                }
+                if (noe.spg2.getAnAtom()==atoms.get(i)) {
+                    refPeakDim=noe.getPeakDim2();
+                    done=true;
                 }
             }
-        });
+            if (!done && atoms.get(i).getResonance()!=null &&
+                    atoms.get(i).getResonance().getPeakDims().size()>0) {
+                refPeakDim=atoms.get(i).getResonance().getPeakDims().get(0);
+                done=true;
+            }
+            if (!done) {
+                atoms.get(i).setResonance((AtomResonance) getPeakDim(i).getResonance());
+                PPMv ppm;
+                ppm = atoms.get(i).getPPM(((ManagedList) getPeakList()).getPpmSet());
+                if (ppm == null) {
+                    ppm = atoms.get(i).getRefPPM(((ManagedList) getPeakList()).getRPpmSet());
+                }
+                if (ppm != null) {
+                    this.getPeakDim(i).setChemShift((float) ppm.getValue());
+                    this.getPeakDim(i).setChemShiftErrorValue((float) ppm.getError());
+                }
+
+                float width;
+                switch (atoms.get(i).getElementName()) {
+                    case "H":
+                        width = 0.04f;
+                        break;
+                    case "C":
+                    case "N":
+                        width = 0.4f;
+                        break;
+                    default:
+                        width = 0.01f;
+                }
+                this.getPeakDim(i).setLineWidthValue(width);
+                this.getPeakDim(i).setBoundsValue(width*1.5f);
+            } else {
+                refPeakDim.copyTo(this.getPeakDim(i));
+                this.getPeakDim(i).setResonance(refPeakDim.getResonance());
+                //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
+                this.getPeakDim(i).getResonance().add(this.getPeakDim(i));
+            }
+            this.getPeakDim(i).setLabel(atoms.get(i).getShortName());
+        }
+
+        if (((ManagedList) peakList).noeSet!=null) {
+            ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
+                while (c.next()) {
+                    for (Noe removedNoe : c.getRemoved()) {
+                        if (this.noes.contains(removedNoe)) {
+                            remove();
+                        }
+                    }
+                }
+            });
+        }
     }
 
     public ManagedPeak(PeakList peakList, Peak peak,Set<Noe> noes) {
@@ -104,7 +153,7 @@ public class ManagedPeak extends Peak {
     public void setStatus(int status) {
         boolean updateStatus=false;
         if (status < 0) {
-            if (((ManagedList) peakList).noeType==null) {
+            if (((ManagedList) peakList).noeSet==null) {
                 GUIUtils.warn("Cannot remove peak", "Peak patterns are determined by sample and experiment type only.");
                 return;
             }

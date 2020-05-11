@@ -1,16 +1,21 @@
 package org.nmrfx.processor.gui;
 
+import javafx.collections.MapChangeListener;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 import org.nmrfx.processor.datasets.peaks.PeakList;
+import org.nmrfx.project.UmbcProject;
+import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
 import java.beans.EventHandler;
@@ -31,7 +36,7 @@ public class ManagedListSetup {
     ChoiceBox<Integer> ppmSetChoices = new ChoiceBox();
     ChoiceBox<Integer> rPpmSetChoices = new ChoiceBox();
     //all NOE dims must use same NoeSet
-    ChoiceBox<Connectivity.NOETYPE> noeType = new ChoiceBox();
+    ChoiceBox<NoeSet> noeSet = new ChoiceBox();
     //TextField bondField = new TextField();
     //TextField minField = new TextField();
     //TextField maxField = new TextField();
@@ -58,12 +63,18 @@ public class ManagedListSetup {
         Label nameLabel=new Label("Name:");
 
         String name="managed_"+acquisition.getDataset().getName().split("\\.")[0];
-        Integer suffix=1;
-        while (PeakList.get(name+suffix.toString())!=null) {
-            suffix+=1;
-        }
-        nameField.setText(name+suffix.toString());
 
+        if (PeakList.get(name)!=null) {
+            Integer suffix = 2;
+            while (PeakList.get(name + suffix.toString()) != null) {
+                suffix += 1;
+            }
+            nameField.setText(name+suffix.toString());
+        } else {
+            nameField.setText(name);
+        }
+        nameField.setPrefWidth(300);
+        /*
         Label ppmSetLabel=new Label("PPM Set: ");
 
         ppmSetChoices.getItems().add(0);
@@ -72,8 +83,9 @@ public class ManagedListSetup {
         ppmSetChoices.getItems().add(3);
         ppmSetChoices.getItems().add(4);
         ppmSetChoices.setValue(0);
+        */
 
-        Label rPpmSetLabel=new Label("Ref Set: ");
+        Label rPpmSetLabel=new Label("Ref PPM Set: ");
 
         rPpmSetChoices.getItems().add(0);
         rPpmSetChoices.getItems().add(1);
@@ -82,7 +94,9 @@ public class ManagedListSetup {
         rPpmSetChoices.getItems().add(4);
         rPpmSetChoices.setValue(0);
 
-        HBox hBox=new HBox(nameLabel,nameField,ppmSetLabel,ppmSetChoices,rPpmSetLabel,rPpmSetChoices);
+        HBox hBox=new HBox(nameLabel,nameField);
+        HBox hBox2=new HBox(rPpmSetLabel,rPpmSetChoices);
+        VBox vBox=new VBox(hBox,hBox2);
         UnaryOperator<TextFormatter.Change> bondFilter = change -> {
             String newText = change.getControlNewText();
             if (newText.matches("([1-5,])?")) {
@@ -99,91 +113,83 @@ public class ManagedListSetup {
             return null;
         };
 
-        Integer conNum=1;
-        char alpha='a';
-        String labString;
+        Button ok = new Button("OK");
+        Button cancel = new Button("Cancel");
+        ok.setOnAction((event) -> {
+            doCreate();
+            stage.close();
+        });
+
+        cancel.setOnAction((event) -> {
+            stage.close();
+        });
+
         Label connLabel;
         GridPane connPane=new GridPane();
-        int col=0;
         int row=0;
-        //for (ExpDim expDim : acquisition.getExperiment().getExpDims()) {
-        //for (ExpDim expDim =acquisition.getExperiment().getFirst(); expDim.getNextExpDim()!=null;expDim=expDim.getNextExpDim()) {
         for (ExpDim expDim : acquisition.getExperiment().expDims) {
-            labString = "";
             if (expDim.getNextExpDim()==null) {
                 break;
             }
 
-            if (expDim.isObserved()) {
-                labString += "F"+conNum.toString();
-                if (expDim.getNextExpDim().isObserved()) {
-                    conNum++;
-                    labString+="-F"+conNum.toString();
-                } else {
-                    labString += "-r" + conNum.toString() + alpha;
-                }
-            } else {
-                labString += "r"+conNum.toString()+alpha;
-                alpha++;
-                if (expDim.getNextExpDim().isObserved()) {
-                    conNum += 1;
-                    labString+="-F"+conNum.toString();
-                    alpha='a';
-                } else {
-                    labString += "-r" + conNum.toString() + alpha;
-                }
-            }
-
-            connLabel=new Label(labString);
-            connPane.add(connLabel,0,row++,5,1);
-            String labString2 = new String();
+            connLabel=new Label(expDim.toString()+"-"+expDim.getNextExpDim().toString()+": ");
+            connPane.add(connLabel,0,row,1,1);
+            String labString = expDim.getNextCon().toString();
             switch (expDim.getNextCon().getType()) {
                 case NOE:
-                    labString2 = "NOE generation logic:";
-                    noeType.getItems().setAll(Connectivity.NOETYPE.values());
-                    connPane.add(new Label(labString2),0,row,1,1);
-                    connPane.add(noeType,2,row++,4,1);
+                    labString+= " using NOE set: ";
+                    //noeType.getItems().setAll(Connectivity.NOETYPE.values());
+                    noeSet.getItems().setAll(acquisition.getProject().noeSetMap.values());
+                    noeSet.setConverter(new StringConverter<NoeSet>() {
+
+                        @Override
+                        public String toString(NoeSet noeSet) {
+                            return acquisition.getProject().noeSetMap.entrySet().stream().filter(ap ->ap.getValue().equals(noeSet)).findFirst().orElse(null).getKey();
+                        }
+
+                        @Override
+                        public NoeSet fromString(String string) {
+                            return acquisition.getProject().noeSetMap.get(string);
+                        }
+                    });
+
+                    connPane.add(new Label(labString),1,row,1,1);
+                    connPane.add(noeSet,2,row++,1,1);
+                    ok.setDisable(true);
+                    noeSet.valueProperty().addListener((observable, oldValue, newValue)->{
+                        if (newValue!=null) {
+                            ok.setDisable(false);
+                        } else {
+                            ok.setDisable(true);
+                        }
+                    });
                     break;
                 case J:
-                    labString2 = "Number of bonds:";
-                    Label bondField=new Label(" expDim.getNextCon().getNumBonds()");
                     /*bondField.setTextFormatter(
                             new TextFormatter<String>(new DefaultStringConverter(), expDim.getNextCon().getNumBonds(), bondFilter));
-
                      */
-                    connPane.add(new Label(labString2),0,row,1,1);
-                    connPane.add(bondField,2,row++,4,1);
-                    break;
                 case TOCSY:
-                    labString2 = "Number of transfers:";
-                    Label min = new Label("Min: "+expDim.getNextCon().getMinTransfers());
-                    Label max = new Label("Max: "+expDim.getNextCon().getMaxTransfers());
                     /*minField.setTextFormatter(
                             new TextFormatter<Integer>(new IntegerStringConverter(), expDim.getNextCon().getMinTransfers(), integerFilter));
                     maxField.setTextFormatter(
                             new TextFormatter<Integer>(new IntegerStringConverter(), expDim.getNextCon().getMaxTransfers(), integerFilter));
                      */
-                    connPane.add(new Label(labString2),0,row,1,1);
-                    connPane.add(min,1,row,1,1);
-                    //connPane.add(minField,2,row,1,1);
-                    connPane.add(max,3,row,1,1);
-                    //connPane.add(maxField,4,row++,1,1);
-                    break;
                 case HBOND:
-                    labString2 = "H-bond (no setup required).";
-                    connPane.add(new Label(labString2),0,row++,5,1);
-                    break;
                 default:
-                    labString2 = "ERROR";
-                    connPane.add(new Label(labString2),0,row++,5,1);
+                    connPane.add(new Label(labString),1,row++,2,1);
                     break;
             }
         }
-        borderPane.setTop(hBox);
+
+        ButtonBar buttonBar = new ButtonBar();
+        ButtonBar.setButtonData(ok, ButtonBar.ButtonData.OK_DONE);
+        ButtonBar.setButtonData(cancel, ButtonBar.ButtonData.CANCEL_CLOSE);
+        buttonBar.getButtons().addAll(cancel, ok);
+
+        ok.setOnAction(e -> doCreate());
+        borderPane.setTop(vBox);
         borderPane.setCenter(connPane);
-        Button createButton = new Button("Create");
-        createButton.setOnAction(e -> doCreate());
-        borderPane.setBottom(createButton);
+        borderPane.setBottom(buttonBar);
         stage.setAlwaysOnTop(true);
         stage.setOnCloseRequest(e -> cancel());
     }
@@ -214,7 +220,7 @@ public class ManagedListSetup {
         if (acquisition.getDataset()==null || acquisition.getSample()==null || acquisition.getExperiment()==null) {
             GUIUtils.warn("Cannot add list", "You must define all acquisition parameters before adding any lists.");
         } else {
-            ManagedList managedList=new ManagedList(acquisition,nameField.getText(),ppmSetChoices.getValue(),rPpmSetChoices.getValue(),noeType.getValue());
+            ManagedList managedList=new ManagedList(acquisition,nameField.getText(),0,rPpmSetChoices.getValue(),noeSet.getValue());
             acquisition.getManagedLists().add(managedList);
         }
         stage.close();

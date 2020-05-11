@@ -1,5 +1,7 @@
 package org.nmrfx.processor.gui;
 
+import javafx.scene.control.Label;
+import javafx.util.StringConverter;
 import org.apache.commons.lang3.StringUtils;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.*;
@@ -60,6 +62,24 @@ public class Connectivity {
         }
     }
 
+    @Override
+    public String toString() {
+        switch (type) {
+            case NOE:
+                return "NOE transfer";
+            case J:
+                return "J coupling through "+numBonds+" bond"+(numBonds.equals("1")?"":"s");
+            case TOCSY:
+                return "TOCSY transfer through "+minTransfers+
+                        (maxTransfers==minTransfers?"":"-"+maxTransfers)+
+                        " transfer"+(maxTransfers==1?"":"s");
+            case HBOND:
+                return "Transfer to hydrogen bonded residues";
+            default:
+                return "Not yet set up";
+        }
+    }
+
     public Set<Atom> getConnections(Atom atom) {
         Set<Atom> atoms=new HashSet<>();
         switch (type) {
@@ -89,9 +109,11 @@ public class Connectivity {
             nBondsList.add(Integer.parseInt(number.trim()));
         }
         for (int bonds : nBondsList) {
-            atoms.addAll(UmbcProject.getMoleculeCouplingList(mol).couplingMap2.get(atom).get(bonds));
+            HashMap<Integer,ArrayList<Atom>> bondMap=UmbcProject.getMoleculeCouplingList(mol).couplingMap2.get(atom);
+            if (bondMap!=null && bondMap.containsKey(bonds)) {
+                atoms.addAll(bondMap.get(bonds));
+            }
         }
-
         return atoms;
     }
 

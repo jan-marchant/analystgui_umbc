@@ -3,9 +3,11 @@ package org.nmrfx.processor.gui;
 import javafx.collections.*;
 import org.nmrfx.processor.datasets.peaks.AtomResonance;
 import org.nmrfx.processor.datasets.peaks.PeakDim;
+import org.nmrfx.processor.operations.Exp;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
+import org.python.modules._hashlib;
 
 import java.util.*;
 
@@ -80,6 +82,10 @@ public class AcqTree {
         this.acquisition=acquisition;
     }
 
+    public Acquisition getAcquisition() {
+        return acquisition;
+    }
+
     public AcqNode addNode() {
         int id = nodes.size();
         AcqNode node = new AcqNode(this, id);
@@ -101,10 +107,24 @@ public class AcqTree {
             }
         }
         AcqNode node = new AcqNode(this, nodes.size(), expDim);
+        nodes.add(node);
         nodeList.add(node);
         expDimNodeMap.putIfAbsent(expDim,FXCollections.observableArrayList());
         expDimNodeMap.get(expDim).add(node);
         return node;
+    }
+
+    public void removeNode(AcqNode node) {
+        Atom atom=node.getAtom();
+        ExpDim expDim=node.getExpDim();
+        // leave in nodes list or need to reIndex
+        // nodes.remove(node);
+        if (atom!=null) {
+            atomNodeMap.get(atom).remove(node);
+        }
+        if (expDim!=null) {
+            expDimNodeMap.get(expDim).remove(node);
+        }
     }
 
     public ExpDim smallestExpDim() {
@@ -253,10 +273,8 @@ public class AcqTree {
             }
             return paths;
         }
-        if (currentNode == getFirstNode()) {
-            if (currentPath.size() != acquisition.getExperiment().getSize()) {
-                System.out.println("Unexpected error with path: "+ currentPath.toString());
-            } else {
+        if (currentNode == getFirstNode() && startNode!=getFirstNode()) {
+            if (currentPath.size() == acquisition.getExperiment().getSize()) {
                 paths.add(currentPath);
             }
             return paths;
@@ -283,34 +301,35 @@ public class AcqTree {
     }
 
 
-    //bind a listener on pickedNodes to set possibleNodes using this method
-    public HashMap<ExpDim, ObservableList<AcqNode>> getPossiblePathNodes(ObservableMap<ExpDim, AcqNode> pickedNodes) {
-        HashMap<ExpDim,ObservableList<AcqNode>> pathNodes=new HashMap<>(expDimNodeMap);
-        List<HashMap<ExpDim, AcqNode>> paths;
-        //for each picked node, find all possible paths. for each ExpDim, only retain nodes found from every picked node.
-        for (Map.Entry<ExpDim, AcqNode> entry : pickedNodes.entrySet()) {
-            if (entry.getValue()!=null) {
-                paths = getPossiblePaths(entry.getValue(), entry.getValue(), true, new HashMap<>(), new ArrayList<>());
-                HashMap<ExpDim, List<AcqNode>> seenNodes = new HashMap<>();
-                for (HashMap<ExpDim, AcqNode> path : paths) {
-                    for (ExpDim expDim : acquisition.getExperiment().expDims) {
-                        seenNodes.putIfAbsent(expDim, new ArrayList<>());
-                        seenNodes.get(expDim).add(path.get(expDim));
-                    }
-                }
+    public HashMap<ExpDim, ObservableList<AcqNode>> getPossiblePathNodes(AcqNode pickedNode) {
+        HashMap<ExpDim, ObservableList<AcqNode>> possibleNodes = new HashMap<>();
+        for (ExpDim expDim : acquisition.getExperiment().expDims) {
+            possibleNodes.putIfAbsent(expDim, FXCollections.observableArrayList());
+            possibleNodes.get(expDim).addAll(expDimNodeMap.get(expDim));
+        }
+        if (pickedNode!=null) {
+            List<HashMap<ExpDim, AcqNode>> paths = getPossiblePaths(pickedNode, pickedNode, true, new HashMap<>(), new ArrayList<>());
+            HashMap<ExpDim, List<AcqNode>> seenNodes = new HashMap<>();
+            for (HashMap<ExpDim, AcqNode> path : paths) {
                 for (ExpDim expDim : acquisition.getExperiment().expDims) {
-                    pathNodes.get(expDim).retainAll(seenNodes.get(expDim));
+                    seenNodes.putIfAbsent(expDim, new ArrayList<>());
+                    seenNodes.get(expDim).add(path.get(expDim));
+                }
+            }
+            for (ExpDim expDim : acquisition.getExperiment().expDims) {
+                try {
+                    possibleNodes.get(expDim).retainAll(seenNodes.get(expDim));
+                } catch (Exception e) {
+                    possibleNodes.get(expDim).clear();
                 }
             }
         }
-        return pathNodes;
+        return possibleNodes;
     }
 
     public List<HashMap<ExpDim, AcqNode>> getPossiblePaths(AcqNode startNode,AcqNode currentNode,boolean forward,HashMap<ExpDim, AcqNode> currentPath,List<HashMap<ExpDim, AcqNode>> paths) {
         if (currentNode == getFirstNode()) {
-            if (currentPath.size() != acquisition.getExperiment().getSize()) {
-                System.out.println("Unexpected error with path: "+ currentPath.toString());
-            } else {
+            if (currentPath.size() == acquisition.getExperiment().getSize()) {
                 paths.add(currentPath);
             }
             return paths;
@@ -318,6 +337,9 @@ public class AcqTree {
         if (currentNode == getLastNode()) {
             currentNode=startNode;
             forward=false;
+        }
+        if (currentNode.getExpDim()!=null) {
+            currentPath.put(currentNode.getExpDim(), currentNode);
         }
         HashMap<ExpDim, AcqNode> nextPath = new HashMap<>();
         for (ExpDim expDim : currentPath.keySet()) {
@@ -331,10 +353,7 @@ public class AcqTree {
             nextNodes=currentNode.getNodes(forward, null);
         }
         for (AcqNode nextNode : nextNodes) {
-            if (nextNode.getExpDim()!=null) {
-                nextPath.put(nextNode.getExpDim(), nextNode);
-            }
-            getPossiblePaths(startNode, nextNode, forward, currentPath, paths);
+            getPossiblePaths(startNode, nextNode, forward, nextPath, paths);
         }
 
         return paths;

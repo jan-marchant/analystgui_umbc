@@ -7,11 +7,13 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.processor.datasets.peaks.AtomResonance;
 import org.nmrfx.processor.datasets.peaks.Peak;
 import org.nmrfx.processor.datasets.peaks.PeakDim;
+import org.nmrfx.processor.operations.Exp;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.Molecule;
@@ -75,7 +77,6 @@ public class Acquisition {
             GUIUtils.warn("Cannot add list","You must define all acquisition parameters before adding any lists.");
         }
         ManagedListSetup managedListSetup = new ManagedListSetup(this);
-
     }
 
     public void deleteManagedList(ManagedList managedList,boolean prompt) {
@@ -278,6 +279,7 @@ public class Acquisition {
                     }
                 }
             }
+            firstDim=false;
         }
         //populate edges
         for (AcqNode node : acqTree.getNodes()) {
@@ -292,6 +294,16 @@ public class Acquisition {
                 }
             }
         }
+        //prune nodes with no possible paths
+        for (AcqNode node : acqTree.getNodes()) {
+            if (acqTree.getPossiblePaths(node, node, true, new HashMap<>(), new ArrayList<>()).size()==0) {
+                acqTree.removeNode(node);
+            }
+        }
         return acqTree;
+    }
+
+    public UmbcProject getProject() {
+        return project;
     }
 }

@@ -24,6 +24,7 @@ public class MoleculeCouplingList {
 
     public MoleculeCouplingList(Molecule mol) {
         this.mol = mol;
+        initBondsAndTransfers();
     }
 
     public void initBondsAndTransfers() {

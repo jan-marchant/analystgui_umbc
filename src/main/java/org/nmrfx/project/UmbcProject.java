@@ -21,7 +21,7 @@ public class UmbcProject extends GUIStructureProject {
     public ObservableList<Dataset> obsDatasetList = FXCollections.observableArrayList();
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
     public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap= new HashMap<>();
-    public static HashMap<String,NoeSet> noeSetMap = new HashMap<>();
+    public HashMap<String,NoeSet> noeSetMap = new HashMap<>();
 
     private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
             obsDatasetList.clear();
@@ -45,6 +45,8 @@ public class UmbcProject extends GUIStructureProject {
         Bindings.bindContent(gObsDatasetList,obsDatasetList);
         Bindings.bindContent(gSampleList,sampleList);
         //acquisitionTable.addListener(acquisitionChangeListener);
+        NoeSet noeSet=new NoeSet("Set 1");
+        noeSetMap.put("Set 1",noeSet);
     }
 
     public static MoleculeCouplingList getMoleculeCouplingList(Molecule molecule) {
@@ -55,14 +57,14 @@ public class UmbcProject extends GUIStructureProject {
     }
 
 
-    public static NoeSet getNoeSet(Molecule molecule, Connectivity.NOETYPE noeType, int ppmSet) {
+    /*public static NoeSet getNoeSet(Molecule molecule, Connectivity.NOETYPE noeType, int ppmSet) {
         String key=molecule.toString()+noeType.toString()+ppmSet;
         if (!noeSetMap.containsKey(key)) {
             NoeSet noeSet=new NoeSet(noeType.toString(),molecule,ppmSet);
             noeSetMap.put(key,noeSet);
         }
         return noeSetMap.get(key);
-    }
+    }*/
 
     public static UmbcProject getActive() {
         Project project = Project.getActive();

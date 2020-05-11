@@ -1,22 +1,15 @@
 package org.nmrfx.processor.gui;
 
-import com.sun.prism.impl.TextureResourcePool;
+
 import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.Entity;
 import org.nmrfx.structure.chemistry.Molecule;
 import org.nmrfx.structure.chemistry.Residue;
-import org.omg.CORBA.ARG_IN;
-import org.python.antlr.ast.Str;
-import org.python.core.PyDictionary;
-import org.python.jsr223.ScriptEngineTest;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ExpDim {
     /**
@@ -37,6 +30,7 @@ public class ExpDim {
     private Nuclei nucleus;
     private HashMap<Molecule, HashMap<Atom,String>> molAtomMap=new HashMap<>();
     private static Pattern matchPattern = Pattern.compile("^(\\*|[A-z]*)(?:\\((\\*|[A-z])\\))?\\.([^,:]*)(?::([0-9\\.]*))?$");
+    private static Pattern labelPattern = Pattern.compile("^([Fr])([0-9]+)([a-z]*)?$");
     private static HashMap<String, HashMap<String, ArrayList<String>>> resMap = new HashMap<>();
     private ArrayList<Match> matches=new ArrayList<>();
 
@@ -63,6 +57,51 @@ public class ExpDim {
         this.nucleus=Nuclei.H1;
         this.pattern=pattern;
         parsePattern();
+    }
+
+    @Override
+    public String toString() {
+        return getNextLabel(previousExpDim);
+    }
+
+    public String getNextLabel(ExpDim expDim) {
+        String returnString="";
+        if (isObserved()) {
+            returnString+="F";
+        } else {
+            returnString+="r";
+        }
+        if (expDim==null) {
+            returnString+="1";
+        } else {
+            Matcher matcher = labelPattern.matcher(expDim.toString());
+            if (!matcher.matches()) {
+                return returnString+"?";
+            }
+            String f=matcher.group(1);
+            String dim=matcher.group(2);
+            if (f.equals("F")) {
+                returnString+=Integer.parseInt(dim)+1;
+            } else {
+                returnString+=dim;
+                if (!isObserved()) {
+                    String last=matcher.group(3);
+                    if (last!=null && last.length()>0) {
+                        //char[] chars= matcher.group(3).toCharArray();
+                        //char lastChar=chars[chars.length-1];
+                        returnString+=last.substring(0,last.length()-1);
+                        if (last.charAt(last.length()-1)=='z') {
+                            returnString+="aa";
+                        } else {
+                            returnString+=last.charAt(last.length()-1)+1;
+                        }
+                    } else {
+                        returnString+="a";
+                    }
+                }
+            }
+        }
+        return returnString;
     }
 
     private void initMolAtomMap(Molecule mol) {
@@ -104,6 +143,14 @@ public class ExpDim {
         return observed;
     }
 
+    public Boolean isNoeDim() {
+        if ((nextCon!=null && nextCon.type == Connectivity.TYPE.NOE) ||
+                (previousCon!=null && previousCon.type == Connectivity.TYPE.NOE)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
     public void setNext(Connectivity nextCon,ExpDim nextExpDim) {
         this.nextCon = nextCon;
         nextExpDim.previousCon=nextCon;

@@ -29,12 +29,11 @@ public class ManagedList extends PeakList {
     private int ppmSet;
     private int rPpmSet;
     //probably don't need this type - just the noeSet which can be passed by managedListSetup
-    public Connectivity.NOETYPE noeType;
-    public NoeSet noeSet;
+    public NoeSet noeSet=null;
     private Noe addedNoe=null;
     //private ManagedPeak addedPeak=null;
 
-    public ManagedList(Acquisition acquisition, String name, int ppmSet, int rPpmset,Connectivity.NOETYPE noeType) {
+    public ManagedList(Acquisition acquisition, String name, int ppmSet, int rPpmset,NoeSet noeSet) {
         super(name, acquisition.getDataset().getNDim());
         this.setSampleConditionLabel(acquisition.getSample().getCondition().toString());
         this.setSlideable(true);
@@ -43,10 +42,7 @@ public class ManagedList extends PeakList {
         this.rPpmSet = rPpmset;
         this.noise = acquisition.getDataset().guessNoiseLevel();
         //this.highestSignal=acquisition.getDataset().extremeValue();
-        this.noeType = noeType;
-        if (this.noeType!=null) {
-            noeSet= UmbcProject.getNoeSet(acquisition.getSample().getMolecule(),noeType,ppmSet);
-        }
+        this.noeSet=noeSet;
         acquisition.getAcqTree().addNoeSet(noeSet);
         //fixme - implement expDim mapping (during acquisition setup - popup if not clear on experiment choice)
         int i = 0;
@@ -164,22 +160,24 @@ public class ManagedList extends PeakList {
 
 
     @Override
-    public ManagedPeak addPeak(Peak newPeak) {
-        if (noeType==null) {
+    public ManagedPeak addPeak(Peak pickedPeak) {
+        if (noeSet==null) {
             GUIUtils.warn("Cannot add peak","Peak patterns are determined by sample and experiment type only.");
             return null;
         }
         //fixme: what about when getNewPeak called? need to be careful
 
-        //Strategy: add NOE with this peak and relevant peakDims and add to NOESet. Have listener that check whether the peak that added is from this peaklist, if not
-        //then add through addNoePeak
+        //TODO: repick from existing NOEs taking new detection limit into account
+        if (pickedPeak.getIntensity()<pickThreshold()) {
+            detectionLimit=0.9*pickedPeak.getIntensity(); //*highestSignal/noise;
+        }
 
-        //All NOEs needed (even if not observed) have to be set up. Can still add the first peak even if it doesn't match assignments.
-
-        newPeak.initPeakDimContribs();
+        pickedPeak.initPeakDimContribs();
+        /*
         Boolean showPicker=false;
+
         AtomResonance resonance;
-        for (PeakDim peakDim : newPeak.getPeakDims()) {
+        for (PeakDim peakDim : pickedPeak.getPeakDims()) {
             resonance=(AtomResonance) peakDim.getResonance();
             if (resonance.getAtom()==null) {
                 showPicker=true;
@@ -190,22 +188,43 @@ public class ManagedList extends PeakList {
         if (showPicker) {
             PeakAtomPicker peakAtomPicker = new PeakAtomPicker();
             peakAtomPicker.create();
-            peakAtomPicker.showAndWait(300, 300, newPeak);
+            peakAtomPicker.showAndWait(300, 300, pickedPeak);
             //peakpicker doAssign() only sets labels - possible fixme
-            for (PeakDim peakDim : newPeak.getPeakDims()) {
+            for (PeakDim peakDim : pickedPeak.getPeakDims()) {
                 resonance=(AtomResonance) peakDim.getResonance();
                 Atom atom=acquisition.getSample().getMolecule().findAtom(peakDim.getLabel());
                 resonance.setAtom(atom);
                 atom.setResonance(resonance);
             }
         }
-        //TODO: repick from existing NOEs taking new detection limit into account
-        if (newPeak.getIntensity()<pickThreshold()) {
-            detectionLimit=0.9*newPeak.getIntensity(); //*highestSignal/noise;
+        List<ManagedPeak> addedPeaks = acquisition.addNoes(this,pickedPeak);
+        */
+        //Use AcqNodeChooser with picked peak
+        AcqNodeChooser chooser = new AcqNodeChooser(this,pickedPeak);
+        chooser.create();
+        chooser.showAndWait(300,300);
+        List<ManagedPeak> addedPeaks=new ArrayList<>();
+        this.idLast--;
+        if (addedNoe!=null) {
+            addedPeaks.addAll(addNoeToList(addedNoe));
         }
-        List<ManagedPeak> addedPeaks = acquisition.addNoes(this,newPeak);
+        if (addedPeaks.size() > 0) {
+            addedNoe.setPeak(addedPeaks.get(addedPeaks.size() - 1));
+        } else {
+            System.out.println("Error adding NOE "+addedNoe);
+            noeSet.get().remove(addedNoe);
+        }
+        for (PeakDim peakDim : pickedPeak.peakDims) {
+            peakDim.remove();
+            if (peakDim.hasMultiplet()) {
+                Multiplet multiplet = peakDim.getMultiplet();
+            }
+        }
+        this.unLinkPeak(pickedPeak);
+        pickedPeak.markDeleted();
+        addedNoe=null;
+
         if (addedPeaks.size()>0) {
-            this.idLast--;
             return addedPeaks.get(addedPeaks.size()-1);
         } else {
             //fixme: risk of idLast getting out of sync here - sometimes return value ignored
@@ -282,15 +301,14 @@ public class ManagedList extends PeakList {
         ArrayList<String> detailArray=new ArrayList<>();
         detailArray.add("PPM Set: "+ppmSet);
         detailArray.add("rPPM Set: "+rPpmSet);
-        if (noeType!=null) {
-            detailArray.add("NOES "+noeType);
+        if (noeSet!=null) {
+            detailArray.add("NOES "+noeSet);
         }
         return detailArray;
     }
 
     private void addEdgeToList(AcqTree.Edge edge, boolean check) {
         if (check && edge.noe==addedNoe) {
-            addedNoe=null;
             return;
         }
         addPeaks(edge);
@@ -360,5 +378,13 @@ public class ManagedList extends PeakList {
 
     public int getRPpmSet() {
         return rPpmSet;
+    }
+
+    public Acquisition getAcquisition() {
+        return acquisition;
+    }
+
+    public Noe getAddedNoe() {
+        return addedNoe;
     }
 }

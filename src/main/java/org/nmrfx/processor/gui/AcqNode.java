@@ -1,14 +1,12 @@
 package org.nmrfx.processor.gui;
 
-import org.nmrfx.processor.datasets.peaks.PeakDim;
+import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.lang.reflect.Array;
+import java.util.*;
 
 
 public class AcqNode {
@@ -38,6 +36,33 @@ public class AcqNode {
         }
     }
 
+    public ArrayList<Double> getPPMs() {
+        ArrayList<Double> ppms=new ArrayList<>();
+        ppms.add(atom.getPPM());
+        for (ManagedList list : acqTree.getAcquisition().getManagedLists()){
+            ppms.addAll(getPPMs(list));
+        }
+        for (PeakList list : PeakList.getLists()) {
+            if (!acqTree.getAcquisition().getManagedLists().contains(list)) {
+                ppms.addAll(getPPMs(list));
+            }
+        }
+        while(ppms.remove(null));
+        return ppms;
+    }
+
+    public ArrayList<Double> getPPMs(PeakList peakList) {
+        ArrayList<Double> ppms=new ArrayList<>();
+        for (int i = 0; i < peakList.getNDim(); i++) {
+            for (Peak sPeak : peakList.peaks()) {
+                if (((AtomResonance) sPeak.getPeakDim(i).getResonance()).getAtom()==getAtom()) {
+                    ppms.add(new Double(sPeak.getPeakDim(i).getChemShift()));
+                }
+            }
+        }
+        return ppms;
+    }
+
     public int getId() {
         return id;
     }
@@ -59,7 +84,7 @@ public class AcqNode {
     }
 
     public Connectivity.TYPE getNextConType (boolean forward) {
-        if (expDim.getNextCon(forward)!=null) {
+        if (expDim!=null && expDim.getNextCon(forward)!=null) {
             return expDim.getNextCon(forward).type;
         } else {
             return null;
