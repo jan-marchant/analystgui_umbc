@@ -67,7 +67,7 @@ public class AcqNodeChooser {
                 } catch (Exception e) {
                     shift=-100.0;
                 }
-                //need a method in acqNode to get chemical shift, then use in sorting (and stringbuilder)
+                //Update method to (also) use atom chemical shift assignment and rppm
                 List<AtomBrowser.AtomDelta> atoms1 = AtomBrowser.getMatchingAtomNames(acquisition.getDataset(), shift, tol);
                 //put these nodes to front of list
                 for (int j = atoms1.size(); j-- > 0; ) {

@@ -3,7 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane prefHeight="350.0" prefWidth="700" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.nmrfx.processor.gui.SampleListSceneController">
+<BorderPane prefHeight="350.0" prefWidth="800" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.nmrfx.processor.gui.SampleListSceneController">
     <center>
         <TableView fx:id="tableView">
             <columns>

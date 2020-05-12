@@ -33,7 +33,7 @@ public class ManagedList extends PeakList {
     private Noe addedNoe=null;
     //private ManagedPeak addedPeak=null;
 
-    public ManagedList(Acquisition acquisition, String name, int ppmSet, int rPpmset,NoeSet noeSet) {
+    public ManagedList(Acquisition acquisition, String name, int ppmSet, int rPpmset,NoeSet noeSet, HashMap<ExpDim,Integer> dimMap) {
         super(name, acquisition.getDataset().getNDim());
         this.setSampleConditionLabel(acquisition.getSample().getCondition().toString());
         this.setSlideable(true);
@@ -46,10 +46,7 @@ public class ManagedList extends PeakList {
         acquisition.getAcqTree().addNoeSet(noeSet);
         //fixme - implement expDim mapping (during acquisition setup - popup if not clear on experiment choice)
         int i = 0;
-        for (ExpDim expDim : acquisition.getExperiment().obsDims) {
-            dimMap.put(expDim, i);
-            i++;
-        }
+        this.dimMap=dimMap;
         initializeList(acquisition.getDataset());
         addPeaks();
         acquisition.getAcqTree().getEdges().addListener((SetChangeListener.Change<? extends AcqTree.Edge> c) -> {
@@ -299,10 +296,13 @@ public class ManagedList extends PeakList {
 
     public ArrayList<String> getDetailText() {
         ArrayList<String> detailArray=new ArrayList<>();
-        detailArray.add("PPM Set: "+ppmSet);
+        detailArray.add(peaks().size()+" peaks");
         detailArray.add("rPPM Set: "+rPpmSet);
         if (noeSet!=null) {
-            detailArray.add("NOES "+noeSet);
+            Optional<Map.Entry<String, NoeSet>> optionalEntry = acquisition.getProject().noeSetMap.entrySet().stream().filter(ap -> ap.getValue().equals(noeSet)).findFirst();
+            if (optionalEntry.isPresent()) {
+            detailArray.add("NOE Set: "+optionalEntry.get().getKey());
+            }
         }
         return detailArray;
     }

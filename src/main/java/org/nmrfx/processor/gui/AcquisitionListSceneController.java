@@ -198,7 +198,7 @@ public class AcquisitionListSceneController implements Initializable {
 
             {
                 combo.prefWidthProperty().bind(this.widthProperty());
-                combo.setOnAction(e -> {
+                combo.valueProperty().addListener((obs,oldV,newV) -> {
                     Acquisition acq=getAcq();
                     if (acq != null) {
                         acq.setExperiment(combo.getValue());
@@ -228,7 +228,11 @@ public class AcquisitionListSceneController implements Initializable {
             }
             //TODO: is there a proper way to do this?
            private Acquisition getAcq() {
+                try {
                     return getTableView().getItems().get(getIndex());
+                } catch (Exception e) {
+                    return null;
+                }
             }
 
             @Override

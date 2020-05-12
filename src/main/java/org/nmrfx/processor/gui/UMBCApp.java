@@ -18,6 +18,8 @@ public class UMBCApp extends AnalystApp {
     public static AcquisitionListSceneController acquisitionListController;
     public static SampleListSceneController sampleListController;
     public static ExperimentListSceneController experimentListController;
+    public static RNALabelsSceneController rnaLabelsController;
+
 
     @Override
     public void start(Stage stage) throws Exception {

@@ -24,8 +24,12 @@ public class UmbcProject extends GUIStructureProject {
     public HashMap<String,NoeSet> noeSetMap = new HashMap<>();
 
     private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
-            obsDatasetList.clear();
-            obsDatasetList.addAll(UmbcProject.getActive().datasetList.values());
+        if (c.wasAdded()) {
+            obsDatasetList.add(c.getValueAdded());
+        }
+        if (c.wasRemoved()) {
+            obsDatasetList.remove(c.getValueRemoved());
+        }
     };
 
     /*private ListChangeListener<Acquisition> acquisitionChangeListener = (ListChangeListener.Change<? extends Acquisition> c) -> {

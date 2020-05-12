@@ -5,6 +5,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import org.nmrfx.project.UmbcProject;
 
 import java.util.*;
 
@@ -65,6 +66,7 @@ public class Experiment {
         setName(name);
         size=0;
         numObsDims.set(0);
+        UmbcProject.experimentList.add(this);
     }
 
     @Override

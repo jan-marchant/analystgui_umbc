@@ -17,9 +17,14 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.Callback;
 import javafx.util.StringConverter;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.project.UmbcProject;
@@ -79,6 +84,7 @@ public class SampleListSceneController implements Initializable {
         TableColumn<Sample, String> nameCol = new TableColumn<>("ID");
         nameCol.setCellValueFactory(cellData -> cellData.getValue().nameProperty());
         //moleculeCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"sample",UmbcProject.gSampleList));
+        nameCol.setCellFactory(TextFieldTableCell.forTableColumn());
         nameCol.setPrefWidth(200);
 
         TableColumn<Sample, Molecule> moleculeCol = new TableColumn<>("Molecule");
@@ -86,15 +92,113 @@ public class SampleListSceneController implements Initializable {
         //moleculeCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"sample",UmbcProject.gSampleList));
         moleculeCol.setPrefWidth(200);
 
-        TableColumn<Sample, IsotopeLabels> labelsCol = new TableColumn<>("Labeling");
-        labelsCol.setCellValueFactory(cellData -> cellData.getValue().labelsProperty());
+        TableColumn<Sample, String> labelsCol = new TableColumn<>("Labeling");
+        //labelsCol.setCellValueFactory(cellData -> cellData.getValue().labelStringProperty());
+        labelsCol.setCellValueFactory(new PropertyValueFactory("labelString"));
         //labelsCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"dataset",UmbcProject.gObsDatasetList));
         labelsCol.setPrefWidth(200);
+        labelsCol.setEditable(false);
+        labelsCol.setCellFactory(new Callback<TableColumn<Sample, String>, TableCell<Sample, String>>() {
+            @Override
+            public TableCell<Sample, String> call(TableColumn<Sample, String> col) {
+                final TableCell<Sample, String> cell = new TableCell<Sample, String>() {
+                    @Override
+                    public void updateItem(String labels, boolean empty) {
+                        super.updateItem(labels, empty);
+                        if (empty) {
+                            setText(null);
+                        } else {
+                            setText(labels);
+                        }
+                    }
+                };
+                cell.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+                    if (event.getClickCount() > 1) {
+                        Sample sample=(Sample) cell.getTableRow().getItem();
+                        if (sample!=null) {
+                            sample.setupLabels();
+                        }
+                    }
+                });
+                return cell;
+            }
+        });
 
-        TableColumn<Sample, Condition> conditionCol = new TableColumn<>("Condition");
-        conditionCol.setCellValueFactory(cellData -> cellData.getValue().conditionProperty());
+
+        TableColumn<Sample, String> conditionCol = new TableColumn<>("Condition");
+        conditionCol.setCellValueFactory(cellData -> cellData.getValue().getCondition().nameProperty());
+        conditionCol.setCellFactory(TextFieldTableCell.forTableColumn());
         //labelsCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"dataset",UmbcProject.gObsDatasetList));
+        /*conditionCol.setCellFactory(column -> new TableCell<Sample, String>() {
+
+            private final Text text;
+
+            private Stage editingStage;
+
+            {
+                text = new Text();
+                text.wrappingWidthProperty().bind(column.widthProperty());
+                setGraphic(text);
+            }
+
+            @Override
+            public void cancelEdit() {
+                super.cancelEdit();
+                closeStage();
+            }
+
+            private void closeStage() {
+                if (editingStage != null && editingStage.isShowing()) {
+                    editingStage.setOnHidden(null);
+                    editingStage.hide();
+                    editingStage = null;
+                }
+            }
+
+            @Override
+            public void commitEdit(String newValue) {
+                super.commitEdit(newValue);
+                closeStage();
+            }
+
+            @Override
+            public void startEdit() {
+                super.startEdit();
+
+                // create editing ui
+                Button cancel = new Button("Cancel");
+                cancel.setCancelButton(true);
+                cancel.setOnAction(evt -> cancelEdit());
+
+                TextArea editor = new TextArea(getItem());
+
+                Button commit = new Button("OK");
+                commit.setOnAction(evt -> commitEdit(editor.getText()));
+
+                VBox vbox = new VBox(10, editor, commit, cancel);
+
+                // display editing window
+                Scene scene = new Scene(vbox);
+                editingStage = new Stage();
+                editingStage.initModality(Modality.WINDOW_MODAL);
+                editingStage.initOwner(getScene().getWindow());
+                editingStage.setScene(scene);
+
+                editingStage.setOnHidden(evt -> this.cancelEdit());
+                editingStage.show();
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                cancelEdit();
+                text.setText(item);
+            }
+        });
+         */
         conditionCol.setPrefWidth(200);
+        conditionCol.setEditable(true);
 
         tableView.getColumns().setAll(nameCol,conditionCol,moleculeCol,labelsCol);
         //tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);

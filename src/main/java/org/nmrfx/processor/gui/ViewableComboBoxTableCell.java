@@ -20,10 +20,14 @@ class ViewableComboBoxTableCell<S,T> extends TableCell<Acquisition,T> {
         propertyRef = new PropertyReference<T>(type, property);
         combo.setItems(list);
         combo.prefWidthProperty().bind(this.widthProperty());
-        combo.setOnAction(e -> {
-            Acquisition acq=getTableView().getItems().get(getIndex());
-            if (acq != null) {
+        combo.valueProperty().addListener((obs,oldV,newV) -> {
+            try {
+                Acquisition acq = getTableView().getItems().get(getIndex());
+                if (acq != null) {
                     propertyRef.set(acq, combo.getValue());
+                }
+            } catch (Exception ex) {
+
             }
         });
         addEventFilter(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {

@@ -204,6 +204,10 @@ public class ExpDim {
                 || (!resPat(atom).equalsIgnoreCase(nextExpDim.resPat(connectedAtom)) && atom.getEntity()!=connectedAtom.getEntity()));
     }
 
+    public String getPattern() {
+        return this.pattern;
+    }
+
     private class Match {
         String resType;
         String resId;
