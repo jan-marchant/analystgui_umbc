@@ -24,6 +24,7 @@ import org.nmrfx.utils.GUIUtils;
 import java.util.*;
 
 public class Acquisition {
+    //todo: condition should be parameter of acquisition, not sample
 
     private UmbcProject project;
     private ObservableList<ManagedList> managedListsList = FXCollections.observableArrayList();

@@ -11,9 +11,11 @@ import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
-
+//todo set sample label
 public class ManagedList extends PeakList {
     private LabelDataset labelDataset;
     //SNR required for picking peak - useful when adding breakthrough labeling percentages
@@ -387,4 +389,61 @@ public class ManagedList extends PeakList {
     public Noe getAddedNoe() {
         return addedNoe;
     }
+
+    @Override
+    public void writeSTAR3Header(FileWriter chan) throws IOException {
+        char stringQuote = '"';
+        chan.write("save_" + getName() + "\n");
+        chan.write("_Spectral_peak_list.Sf_category                   ");
+        chan.write("spectral_peak_list\n");
+        chan.write("_Spectral_peak_list.Sf_framecode                  ");
+        chan.write(getName() + "\n");
+        chan.write("_Spectral_peak_list.ID                            ");
+        chan.write(getId() + "\n");
+        chan.write("_Spectral_peak_list.Data_file_name                ");
+        chan.write(".\n");
+        chan.write("_Spectral_peak_list.Sample_ID                     ");
+        chan.write(acquisition.getSample().getId()+"\n");
+        chan.write("_Spectral_peak_list.Sample_label                  ");
+        if (getSampleLabel().length() != 0) {
+            chan.write("$" + getSampleLabel() + "\n");
+        } else {
+            chan.write(".\n");
+        }
+        chan.write("_Spectral_peak_list.Sample_condition_list_ID      ");
+        chan.write(acquisition.getSample().getCondition().getId()+"\n");
+        chan.write("_Spectral_peak_list.Sample_condition_list_label   ");
+        String sCond = getSampleConditionLabel();
+        if ((sCond.length() != 0) && !sCond.equals(".")) {
+            chan.write("$" + sCond + "\n");
+        } else {
+            chan.write(".\n");
+        }
+        chan.write("_Spectral_peak_list.Slidable                      ");
+        String slidable = isSlideable() ? "yes" : "no";
+        chan.write(slidable + "\n");
+
+        chan.write("_Spectral_peak_list.Experiment_ID                 ");
+        chan.write(".\n");
+        chan.write("_Spectral_peak_list.Experiment_name               ");
+        if (fileName.length() != 0) {
+            chan.write("$" + fileName + "\n");
+        } else {
+            chan.write(".\n");
+        }
+        chan.write("_Spectral_peak_list.Experiment_type               ");
+        chan.write("$" + acquisition.getExperiment().toString() + "\n");
+        chan.write("_Spectral_peak_list.Experiment_class              ");
+        chan.write("$" + acquisition.getExperiment().toCode() + "\n");
+        chan.write("_Spectral_peak_list.Number_of_spectral_dimensions ");
+        chan.write(String.valueOf(nDim) + "\n");
+        chan.write("_Spectral_peak_list.Details                       ");
+        if (getDetails().length() != 0) {
+            chan.write(stringQuote + getDetails() + stringQuote + "\n");
+        } else {
+            chan.write(".\n");
+        }
+        chan.write("\n");
+    }
+
 }

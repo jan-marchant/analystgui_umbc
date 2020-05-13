@@ -171,11 +171,13 @@ public class AcqTree {
     }
 
     public AcqNode getNode(ExpDim expDim, Atom atom) {
-        for (AcqNode node : getNodes(atom)) {
-            if (node.getExpDim()==expDim) {
-                return node;
+        try {
+            for (AcqNode node : getNodes(atom)) {
+                if (node.getExpDim() == expDim) {
+                    return node;
+                }
             }
-        }
+        } catch (Exception e) {}
         return null;
     }
 

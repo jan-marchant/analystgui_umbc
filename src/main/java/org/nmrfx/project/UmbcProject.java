@@ -14,12 +14,14 @@ import org.nmrfx.processor.gui.*;
 import org.nmrfx.structure.chemistry.Molecule;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 
+import java.io.IOException;
 import java.util.HashMap;
 
 public class UmbcProject extends GUIStructureProject {
     public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
     public ObservableList<Dataset> obsDatasetList = FXCollections.observableArrayList();
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
+    public ObservableList<Condition> conditionList = FXCollections.observableArrayList();
     public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap= new HashMap<>();
     public HashMap<String,NoeSet> noeSetMap = new HashMap<>();
 
@@ -118,5 +120,23 @@ public class UmbcProject extends GUIStructureProject {
         newProject.activeRDCSet = project.activeRDCSet;
         return newProject;
     }
+
+    @Override
+    public void saveProject() throws IOException {
+        Project currentProject=getActive();
+        setActive();
+
+        if (projectDir == null) {
+            throw new IllegalArgumentException("Project directory not set");
+        }
+        super.saveProject();
+        if(currentProject==this) {
+            saveWindows(projectDir);
+        }
+        gitCommitOnThread();
+        PreferencesController.saveRecentProjects(projectDir.toString());
+        currentProject.setActive();
+    }
+
 
 }

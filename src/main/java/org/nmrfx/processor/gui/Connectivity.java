@@ -12,13 +12,16 @@ import java.util.*;
 public class Connectivity {
 
     public enum TYPE {
-        NOE,
-        J,
-        TOCSY,
-        HBOND;
+        NOE("NOE"),
+        J("J"),
+        TOCSY("TOCSY"),
+        HBOND("HBOND");
+        private String label;
+        TYPE(String label) {this.label=label;}
+        public String toString() {return label;}
     }
     public enum NOETYPE {
-        PEAKS("From Peaks"),
+        PEAKS("None"),
         ATTRIBUTES("Attributes-based"),
         STRUCTURE("From Structure");
 
@@ -31,8 +34,6 @@ public class Connectivity {
             return label;
         }
     }
-    //this doesn't belong here
-    private NoeSet noeSet;
     public TYPE type;
     /**Rough idea at the moment - best not to expose to the world, can set up lots of prototype experiments instead
      **/
@@ -40,15 +41,46 @@ public class Connectivity {
     private int maxTransfers;
     private String numBonds;
 
+    public Connectivity(String code) {
+        String[] parameters=code.split(":");
+        switch (parameters[0]) {
+            case "NOE":
+                this.type=TYPE.NOE;
+                break;
+            case "J":
+                this.type=TYPE.J;
+                this.numBonds=parameters[1];
+                break;
+            case "TOCSY":
+                this.type=TYPE.TOCSY;
+                this.minTransfers=Integer.parseInt(parameters[1].split("-")[0]);
+                this.maxTransfers=Integer.parseInt(parameters[1].split("-")[1]);
+                break;
+            case "HBOND":
+                this.type=TYPE.HBOND;
+                break;
+            default:
+                System.out.println("Couldn't parse experiment "+type);
+        }
+    }
+
+    public String toCode() {
+        String toReturn=type.toString();
+        if (type==TYPE.J) {
+            toReturn+=":"+numBonds;
+        }
+        if (type==TYPE.TOCSY) {
+            toReturn+=":"+minTransfers+"-"+maxTransfers;
+        }
+        return toReturn;
+    }
+
     public Connectivity(int minTransfers, int maxTransfers) {
         this.type=TYPE.TOCSY;
         this.minTransfers=minTransfers;
         this.maxTransfers=maxTransfers;
     }
-    public Connectivity(String numBonds) {
-        this.type=TYPE.J;
-        this.numBonds=numBonds;
-    }
+
     public Connectivity(Connectivity.TYPE type) {
         this.type=type;
         switch (type) {

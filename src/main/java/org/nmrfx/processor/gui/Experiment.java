@@ -7,6 +7,8 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import org.nmrfx.project.UmbcProject;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class Experiment {
@@ -67,6 +69,38 @@ public class Experiment {
         size=0;
         numObsDims.set(0);
         UmbcProject.experimentList.add(this);
+    }
+
+    public Experiment(String name,String code){
+        setName(name);
+        size=0;
+        numObsDims.set(0);
+        //todo implement as name:experiment map to make replacing easier
+        String[] codeStrings=code.split("\\|");
+        for (int i=0;i<codeStrings.length;) {
+            Connectivity connectivity=createConnectivity(codeStrings[i++]);
+            ExpDim expDim=new ExpDim(codeStrings[i++]);
+            this.add(connectivity,expDim);
+        }
+        UmbcProject.experimentList.add(this);
+    }
+
+    public Connectivity createConnectivity(String code) {
+        if (code.equals("")) {
+            return null;
+        } else {
+            return new Connectivity(code);
+        }
+    }
+
+    public String toCode() {
+        String toReturn="";
+        for (ExpDim expDim : expDims) {
+            toReturn+=expDim.getNextCon(false)==null?"":"|"+expDim.getNextCon(false).toCode();
+            toReturn+="|";
+            toReturn+=expDim.toCode();
+        }
+        return toReturn;
     }
 
     @Override
@@ -183,4 +217,23 @@ public class Experiment {
     public int getSize() {
         return size;
     }
+
+    public void writeStar3(FileWriter chan) throws IOException {
+    }
+
+    public static void writeAllStar3 (FileWriter chan) throws IOException {
+        //TODO: I can't find a star3 saveframe appropriate for "prototype" experiments
+        // so current strategy is to use spectral_peak_list experiment name (currently unused)
+        // to indicate the "experiment_lib" file to read from, while including a code
+        // which overrides (in case of local changes).
+        for (Experiment experiment : UmbcProject.getActive().experimentList) {
+            for (Acquisition acquisition : UmbcProject.getActive().acquisitionTable) {
+                if (acquisition.getExperiment()==experiment) {
+                    experiment.writeStar3(chan);
+                    break;
+                }
+            }
+        }
+    }
+
 }

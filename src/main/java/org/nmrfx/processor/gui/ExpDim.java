@@ -30,6 +30,7 @@ public class ExpDim {
     private Nuclei nucleus;
     private HashMap<Molecule, HashMap<Atom,String>> molAtomMap=new HashMap<>();
     private static Pattern matchPattern = Pattern.compile("^(\\*|[A-z]*)(?:\\((\\*|[A-z])\\))?\\.([^,:]*)(?::([0-9\\.]*))?$");
+    private static Pattern codePattern = Pattern.compile("^([A-z]+)\\[(.)\\]\\((.*)\\)$");
     private static Pattern labelPattern = Pattern.compile("^([Fr])([0-9]+)([a-z]*)?$");
     private static HashMap<String, HashMap<String, ArrayList<String>>> resMap = new HashMap<>();
     private ArrayList<Match> matches=new ArrayList<>();
@@ -37,13 +38,13 @@ public class ExpDim {
     public ExpDim(Nuclei nucleus,Boolean observed) {
         this.observed=observed;
         this.nucleus=nucleus;
-        this.pattern="*(*).*";
+        this.pattern="*.*";
         parsePattern();
     }
     public ExpDim(Boolean observed) {
         this.observed=observed;
         this.nucleus=Nuclei.H1;
-        this.pattern="*(*).*";
+        this.pattern="*.*";
         parsePattern();
     }
     public ExpDim(Nuclei nucleus,Boolean observed,String pattern) {
@@ -52,6 +53,29 @@ public class ExpDim {
         this.pattern=pattern;
         parsePattern();
     }
+
+    public ExpDim(String code) {
+        Matcher matcher = codePattern.matcher(code);
+        if (!matcher.matches()) {
+            System.out.println("Error parsing expDim "+code);
+            this.observed=false;
+            this.nucleus=Nuclei.H1;
+            this.pattern="*.*";
+        } else {
+            this.nucleus=Nuclei.findNuclei(matcher.group(1));
+            this.observed=matcher.group(2).equals("1")?true:false;
+            this.pattern=matcher.group(3);
+        }
+        parsePattern();
+    }
+
+    public String toCode() {
+        String toReturn=nucleus.getName()+"[";
+        toReturn+=observed?"1":"0";
+        toReturn+="]("+pattern+")";
+        return toReturn;
+    }
+
     public ExpDim(Boolean observed,String pattern) {
         this.observed=observed;
         this.nucleus=Nuclei.H1;
