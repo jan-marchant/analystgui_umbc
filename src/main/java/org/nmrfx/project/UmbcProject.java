@@ -23,7 +23,6 @@ public class UmbcProject extends GUIStructureProject {
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
     public ObservableList<Condition> conditionList = FXCollections.observableArrayList();
     public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap= new HashMap<>();
-    public HashMap<String,NoeSet> noeSetMap = new HashMap<>();
 
     private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
         if (c.wasAdded()) {
@@ -41,18 +40,21 @@ public class UmbcProject extends GUIStructureProject {
     public static ObservableList<Acquisition> gAcquisitionTable = FXCollections.observableArrayList();
     public static ObservableList<Dataset> gObsDatasetList = FXCollections.observableArrayList();
     public static ObservableList<Sample> gSampleList = FXCollections.observableArrayList();
+    public static ObservableList<Condition> gConditionList = FXCollections.observableArrayList();
     public static ObservableList<Experiment> experimentList = FXCollections.observableArrayList();
 
 
     public UmbcProject(String name) {
         super(name);
+        obsDatasetList.addAll(datasetList.values());
         datasetList.addListener(datasetChangeListener);
         Bindings.bindContent(gAcquisitionTable,acquisitionTable);
         Bindings.bindContent(gObsDatasetList,obsDatasetList);
         Bindings.bindContent(gSampleList,sampleList);
+        Bindings.bindContent(gConditionList,conditionList);
         //acquisitionTable.addListener(acquisitionChangeListener);
-        NoeSet noeSet=new NoeSet("Set 1");
-        noeSetMap.put("Set 1",noeSet);
+        //NoeSet noeSet=new NoeSet("Set 1");
+        //NOE_SETS.put("Set 1",noeSet);
     }
 
     public static MoleculeCouplingList getMoleculeCouplingList(Molecule molecule) {
@@ -90,12 +92,14 @@ public class UmbcProject extends GUIStructureProject {
             Bindings.unbindContent(gAcquisitionTable, UmbcProject.getActive().acquisitionTable);
             Bindings.unbindContent(gObsDatasetList, UmbcProject.getActive().obsDatasetList);
             Bindings.unbindContent(gSampleList, UmbcProject.getActive().sampleList);
+            Bindings.unbindContent(gConditionList, UmbcProject.getActive().conditionList);
         }
         super.setActive();
         if (acquisitionTable!=null) {
             Bindings.bindContent(gAcquisitionTable,acquisitionTable);
             Bindings.bindContent(gObsDatasetList,obsDatasetList);
             Bindings.bindContent(gSampleList,sampleList);
+            Bindings.bindContent(gConditionList,conditionList);
         }
     }
 
@@ -106,7 +110,11 @@ public class UmbcProject extends GUIStructureProject {
         project.molecules.clear();
         newProject.peakLists.putAll(project.peakLists);
         project.peakLists.clear();
-        newProject.datasetList=project.datasetList;
+        for (String datasetName : project.datasetList.keySet()) {
+            newProject.datasetList.put(datasetName,project.datasetList.get(datasetName));
+        }
+        // already set up listeners
+        // newProject.datasetList=project.datasetList;
         newProject.peakListTable=project.peakListTable;
         newProject.resFactory=project.resFactory;
         newProject.peakPaths=project.peakPaths;
@@ -121,7 +129,7 @@ public class UmbcProject extends GUIStructureProject {
         return newProject;
     }
 
-    @Override
+    /*@Override
     public void saveProject() throws IOException {
         Project currentProject=getActive();
         setActive();
@@ -136,7 +144,7 @@ public class UmbcProject extends GUIStructureProject {
         gitCommitOnThread();
         PreferencesController.saveRecentProjects(projectDir.toString());
         currentProject.setActive();
-    }
+    }*/
 
 
 }

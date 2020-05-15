@@ -21,6 +21,8 @@ import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class Acquisition {
@@ -32,6 +34,8 @@ public class Acquisition {
     private ObjectProperty<Dataset> dataset = new SimpleObjectProperty<>();
     private ObjectProperty<Experiment> experiment = new SimpleObjectProperty<>();
     private ObjectProperty<Sample> sample = new SimpleObjectProperty<>();
+    private ObjectProperty<Condition> condition = new SimpleObjectProperty<>();
+
     private ListProperty<ManagedList> managedLists = new SimpleListProperty<>(managedListsList);
     private ListProperty<Experiment> validExperiments = new SimpleListProperty<>(validExperimentList);
     private Double sensitivity;
@@ -73,9 +77,14 @@ public class Acquisition {
         }
     }
 
+    public void attachManagedList(ManagedList list) {
+        managedLists.get().add(list);
+    }
+
     public void addNewManagedList() {
         if (getDataset()==null || getSample()==null || getExperiment()==null) {
             GUIUtils.warn("Cannot add list","You must define all acquisition parameters before adding any lists.");
+            return;
         }
         ManagedListSetup managedListSetup = new ManagedListSetup(this);
     }
@@ -139,6 +148,18 @@ public class Acquisition {
 
     public void setSample(Sample sample) {
         this.sample.set(sample);
+    }
+
+    public Condition getCondition() {
+        return condition.get();
+    }
+
+    public ObjectProperty<Condition> conditionProperty() {
+        return condition;
+    }
+
+    public void setCondition(Condition condition) {
+        this.condition.set(condition);
     }
 
     public ObservableList<ManagedList> getManagedLists() {
@@ -304,7 +325,19 @@ public class Acquisition {
         return acqTree;
     }
 
+    public void setupListeners() {
+        for (ManagedList list : managedLists.get()) {
+            list.setupListener();
+        }
+    }
+
     public UmbcProject getProject() {
         return project;
+    }
+
+    public void writePeakConstraintLinksStar3(FileWriter chan) throws IOException {
+        for (ManagedList managedList : getManagedLists()) {
+            managedList.writePeakConstraintLinks(chan);
+        }
     }
 }

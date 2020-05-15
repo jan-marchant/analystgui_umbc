@@ -20,10 +20,13 @@ package org.nmrfx.structure.chemistry.io;
 import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.processor.datasets.peaks.io.PeakPathWriter;
 import org.nmrfx.processor.datasets.peaks.io.PeakWriter;
+import org.nmrfx.processor.gui.Acquisition;
 import org.nmrfx.processor.gui.Condition;
 import org.nmrfx.processor.gui.Sample;
 import org.nmrfx.processor.star.ParseException;
 import org.nmrfx.processor.star.STAR3;
+import org.nmrfx.project.Project;
+import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.*;
 import org.nmrfx.structure.chemistry.constraints.AngleConstraint;
 import org.nmrfx.structure.chemistry.constraints.ConstraintSet;
@@ -786,8 +789,8 @@ public class NMRStarWriter {
         if (molecule != null) {
             writeMoleculeSTAR3(chan, molecule, 1);
             Sample.writeAllStar3(chan);
-            Condition.writeAllStar3(chan);
         }
+        Condition.writeAllStar3(chan);
         // fixme Dataset.writeDatasetsToSTAR3(channelName);
         Iterator iter = PeakList.iterator();
         PeakWriter peakWriter = new PeakWriter();
@@ -804,6 +807,7 @@ public class NMRStarWriter {
             for (int iSet = 0; iSet < ppmSetCount; iSet++) {
                 writeAssignmentsSTAR3(chan, iSet);
             }
+            //todo: consider how to write automatically generated structures - should they be deposited
             CoordinateSTARWriter.writeToSTAR3(chan, molecule, 1);
             int setNum = 1;
             for (ConstraintSet cSet : NoeSet.getSets()) {
@@ -816,6 +820,9 @@ public class NMRStarWriter {
             if (cSet.getSize() > 0) {
                 ConstraintSTARWriter.writeConstraintsSTAR3(chan, cSet, setNum++);
             }
+        }
+        for (Acquisition acquisition : UmbcProject.getActive().acquisitionTable) {
+            acquisition.writePeakConstraintLinksStar3(chan);
         }
         PeakPathWriter pathWriter = new PeakPathWriter();
         int iPath = 0;

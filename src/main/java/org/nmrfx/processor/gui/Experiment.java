@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.*;
 
 public class Experiment {
-    class ExpDims implements Iterable<ExpDim> {
+    public class ExpDims implements Iterable<ExpDim> {
         boolean obs;
         public ExpDims(boolean obs) {
             this.obs=obs;
@@ -57,6 +57,7 @@ public class Experiment {
     public ExpDims expDims = new ExpDims(false);
     public ExpDims obsDims = new ExpDims(true);
 
+    //public Iterator<ExpDim> obsIterator = obsDims.iterator();
     private StringProperty name=new SimpleStringProperty();
     private int size;
     private IntegerProperty numObsDims=new SimpleIntegerProperty();
@@ -83,6 +84,15 @@ public class Experiment {
             this.add(connectivity,expDim);
         }
         UmbcProject.experimentList.add(this);
+    }
+
+    public static Experiment find(String name) {
+        for (Experiment experiment : UmbcProject.getActive().experimentList) {
+            if (experiment.getName().equals(name)) {
+                return experiment;
+            }
+        }
+        return null;
     }
 
     public Connectivity createConnectivity(String code) {

@@ -112,7 +112,7 @@ public class ManagedPeak extends Peak {
 
     public ManagedPeak(PeakList peakList, int nDim) {
         super(peakList, nDim);
-        ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
+        /*((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
             while (c.next()) {
                 for (Noe removedNoe : c.getRemoved()) {
                     if (noes.contains(removedNoe)) {
@@ -120,7 +120,7 @@ public class ManagedPeak extends Peak {
                     }
                 }
             }
-        });
+        });*/
     }
 
     public ManagedPeak(PeakList peakList,Peak peak) {
@@ -194,5 +194,9 @@ public class ManagedPeak extends Peak {
             peakList.peaks().remove(this);
             peakList.reIndex();
         });
+    }
+
+    public Set<Noe> getNoes() {
+        return noes;
     }
 }

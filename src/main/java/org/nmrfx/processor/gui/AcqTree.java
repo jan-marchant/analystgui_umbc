@@ -143,7 +143,10 @@ public class AcqTree {
 
     public void addNoeSet (NoeSet noeSet) {
         if (!noeSets.contains(noeSet)) {
-            if (noeSet != null) {
+            if (noeSet == null) {
+                System.out.println("null set");
+            } else {
+                noeSets.add(noeSet);
                 for (Noe noe : noeSet.get()) {
                     addNoeToTree(noeSet, noe);
                 }

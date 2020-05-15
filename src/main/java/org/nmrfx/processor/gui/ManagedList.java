@@ -5,7 +5,6 @@ import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.processor.datasets.peaks.*;
 
-import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
@@ -17,7 +16,6 @@ import java.util.*;
 
 //todo set sample label
 public class ManagedList extends PeakList {
-    private LabelDataset labelDataset;
     //SNR required for picking peak - useful when adding breakthrough labeling percentages
     private double detectionLimit=3;
     private Double noise;
@@ -34,20 +32,20 @@ public class ManagedList extends PeakList {
     public NoeSet noeSet=null;
     private Noe addedNoe=null;
     //private ManagedPeak addedPeak=null;
+    //private List<ManagedPeak> peaks;
 
+    //initial creation
     public ManagedList(Acquisition acquisition, String name, int ppmSet, int rPpmset,NoeSet noeSet, HashMap<ExpDim,Integer> dimMap) {
         super(name, acquisition.getDataset().getNDim());
-        this.setSampleConditionLabel(acquisition.getSample().getCondition().toString());
+        this.setSampleConditionLabel(acquisition.getCondition().toString());
+        this.setSampleLabel(acquisition.getSample().toString());
         this.setSlideable(true);
         this.acquisition = acquisition;
         this.ppmSet = ppmSet;
         this.rPpmSet = rPpmset;
         this.noise = acquisition.getDataset().guessNoiseLevel();
-        //this.highestSignal=acquisition.getDataset().extremeValue();
         this.noeSet=noeSet;
         acquisition.getAcqTree().addNoeSet(noeSet);
-        //fixme - implement expDim mapping (during acquisition setup - popup if not clear on experiment choice)
-        int i = 0;
         this.dimMap=dimMap;
         initializeList(acquisition.getDataset());
         addPeaks();
@@ -58,66 +56,28 @@ public class ManagedList extends PeakList {
         });
     }
 
-    public ManagedList(LabelDataset labelDataset) {
-        super(labelDataset.getManagedListName(),labelDataset.getDataset().getNDim());
-        this.labelDataset=labelDataset;
-        this.setSampleConditionLabel(labelDataset.getCondition());
-        this.setSlideable(true);
-        this.noise=labelDataset.getDataset().guessNoiseLevel();
-        //this.highestSignal=labelDataset.getDataset().extremeValue();
+    //Loading from star file
+    // fixme: rPpmSet not set on reload
+    public ManagedList(String name,int nDim,Acquisition acquisition, HashMap<ExpDim,Integer> dimMap) {
+        super(name,nDim);
+        this.acquisition=acquisition;
+        //fixme
+        this.rPpmSet=0;
+        this.noise = acquisition.getDataset().guessNoiseLevel();
+        this.dimMap=dimMap;
+        initializeList(acquisition.getDataset());
     }
-    public ManagedList(LabelDataset labelDataset, int n) {
-        super(labelDataset.getManagedListName(),n);
-        this.labelDataset=labelDataset;
-        this.setSampleConditionLabel(labelDataset.getCondition());
-        this.setSlideable(true);
-        this.noise=labelDataset.getDataset().guessNoiseLevel();
-        //this.highestSignal=labelDataset.getDataset().extremeValue();
+    public void setNoeSet(NoeSet noeSet) {
+        this.noeSet=noeSet;
+        acquisition.getAcqTree().addNoeSet(noeSet);
     }
-    public ManagedList(LabelDataset labelDataset,PeakList peakList) {
-        super(labelDataset.getManagedListName()+"temp",peakList.getNDim());
 
-        this.searchDims.addAll(peakList.searchDims);
-        this.fileName = peakList.fileName;
-        this.scale = peakList.scale;
-        this.setDetails(peakList.getDetails());
-        this.setSampleLabel(peakList.getSampleLabel());
-        //this.setSampleConditionLabel(peakList.getSampleConditionLabel());
-        this.setSampleConditionLabel(labelDataset.getCondition());
-
-        for (int i = 0; i < nDim; i++) {
-            this.setSpectralDim(peakList.getSpectralDim(i).copy(this),i);
-        }
-
-        for (int i = 0; i < peakList.peaks().size(); i++) {
-            Peak peak = peakList.peaks().get(i);
-            ManagedPeak newPeak = new ManagedPeak(this,peak);
-            peaks().add(newPeak);
-        }
-        this.idLast = peakList.idLast;
-        this.reIndex();
-
-        //update charts which match
-        List<PolyChart> activeChartList = new ArrayList<>();
-
-        for (PolyChart chart : PolyChart.CHARTS) {
-            chart.getPeakListAttributes().forEach((peakListAttr) -> {
-                if (peakListAttr.getPeakList()==peakList) {
-                    activeChartList.add(chart);
-                }
-            });
-        }
-
-        peakList.remove();
-        this.setName(labelDataset.getManagedListName());
-        for (PolyChart chart : activeChartList) {
-            chart.setupPeakListAttributes(this);
-            //peakAttr.setLabelType(PeakDisplayParameters.LabelTypes.SglResidue);
-        }
-        this.labelDataset=labelDataset;
-        this.setSlideable(true);
-        this.noise=labelDataset.getDataset().guessNoiseLevel();
-        //this.highestSignal=labelDataset.getDataset().extremeValue();
+    public void setupListener() {
+        acquisition.getAcqTree().getEdges().addListener((SetChangeListener.Change<? extends AcqTree.Edge> c) -> {
+            if (c.wasAdded()) {
+                addEdgeToList(c.getElementAdded(),true);
+            }
+        });
     }
 
     public void initializeList(Dataset dataset) {
@@ -157,6 +117,11 @@ public class ManagedList extends PeakList {
         }
     }
 
+    public void loadPeak(ManagedPeak newPeak) {
+            newPeak.initPeakDimContribs();
+            peaks().add(newPeak);
+            clearIndex();
+    }
 
     @Override
     public ManagedPeak addPeak(Peak pickedPeak) {
@@ -231,32 +196,7 @@ public class ManagedList extends PeakList {
         }
     }
 
-    public void addLinkedPeak(Peak manPeak,float percent) {
-        //TODO: add check for whether peak already exists
-        //TODO: Add diagonal peak
-        float intensity=manPeak.getIntensity();
-        float new_percent=labelDataset.getPeakPercent(manPeak);
-        //this doesn't account for spin diffusion - only for "breakthrough" peaks
-        float new_intensity=new_percent*intensity/percent;
-        Boolean active=false;
-        Dataset ds=Dataset.getDataset(fileName);
-        if (noise==null) {
-            active=true;
-        } else if (new_intensity> detectionLimit *noise) {
-            //Need to watch peak intensity changes to update I guess
-            active=true;
-        }
 
-        if (active) {
-            ManagedPeak newManPeak=new ManagedPeak(this,manPeak);
-            newManPeak.setIntensity(new_intensity);
-            //TODO: change bounds of newManPeak to reflect new intensity
-            peaks().add(newManPeak);
-            this.reIndex();
-            //ensure resonances match
-            //scale intensity
-        }
-    }
 
     public Set<Peak> getMatchingPeaks(Peak searchPeak, Boolean includeSelf) {
         Set<Peak> matchingPeaks;
@@ -301,7 +241,7 @@ public class ManagedList extends PeakList {
         detailArray.add(peaks().size()+" peaks");
         detailArray.add("rPPM Set: "+rPpmSet);
         if (noeSet!=null) {
-            Optional<Map.Entry<String, NoeSet>> optionalEntry = acquisition.getProject().noeSetMap.entrySet().stream().filter(ap -> ap.getValue().equals(noeSet)).findFirst();
+            Optional<Map.Entry<String, NoeSet>> optionalEntry = acquisition.getProject().NOE_SETS.entrySet().stream().filter(ap -> ap.getValue().equals(noeSet)).findFirst();
             if (optionalEntry.isPresent()) {
             detailArray.add("NOE Set: "+optionalEntry.get().getKey());
             }
@@ -406,16 +346,16 @@ public class ManagedList extends PeakList {
         chan.write(acquisition.getSample().getId()+"\n");
         chan.write("_Spectral_peak_list.Sample_label                  ");
         if (getSampleLabel().length() != 0) {
-            chan.write("$" + getSampleLabel() + "\n");
+            chan.write("'" + getSampleLabel() + "'\n");
         } else {
             chan.write(".\n");
         }
         chan.write("_Spectral_peak_list.Sample_condition_list_ID      ");
-        chan.write(acquisition.getSample().getCondition().getId()+"\n");
+        chan.write(acquisition.getCondition().getId()+"\n");
         chan.write("_Spectral_peak_list.Sample_condition_list_label   ");
         String sCond = getSampleConditionLabel();
         if ((sCond.length() != 0) && !sCond.equals(".")) {
-            chan.write("$" + sCond + "\n");
+            chan.write("'" + sCond + "'\n");
         } else {
             chan.write(".\n");
         }
@@ -432,7 +372,7 @@ public class ManagedList extends PeakList {
             chan.write(".\n");
         }
         chan.write("_Spectral_peak_list.Experiment_type               ");
-        chan.write("$" + acquisition.getExperiment().toString() + "\n");
+        chan.write("'" + acquisition.getExperiment().toString() + "'\n");
         chan.write("_Spectral_peak_list.Experiment_class              ");
         chan.write("$" + acquisition.getExperiment().toCode() + "\n");
         chan.write("_Spectral_peak_list.Number_of_spectral_dimensions ");
@@ -444,6 +384,79 @@ public class ManagedList extends PeakList {
             chan.write(".\n");
         }
         chan.write("\n");
+
+        chan.write("loop_\n");
+        chan.write("_Spectral_dim_transfer.Spectral_dim_ID_1\n");
+        chan.write("_Spectral_dim_transfer.Spectral_dim_ID_2\n");
+        chan.write("_Spectral_dim_transfer.Indirect\n");
+        chan.write("_Spectral_dim_transfer.Spectral_peak_list_ID\n");
+        chan.write("_Spectral_dim_transfer.Type\n");
+        chan.write("\n");
+
+        ExpDim expDim1=null;
+        ExpDim expDim2=null;
+        String indirect;
+        String type;
+        Iterator<ExpDim> obsIterator=acquisition.getExperiment().obsDims.iterator();
+
+        while (obsIterator.hasNext()) {
+            if (expDim1==null) {
+                expDim1 = obsIterator.next();
+            } else {
+                expDim1=expDim2;
+            }
+            expDim2 = obsIterator.next();
+            if (expDim2==expDim1.getNextExpDim()) {
+                indirect="no";
+                type=expDim1.getNextCon().type.toString();
+            } else {
+                indirect="yes";
+                type=".";
+            }
+            chan.write(String.format("%d %d %s %d %s\n",dimMap.get(expDim1),dimMap.get(expDim2),indirect,getId(),type));
+        }
+        chan.write("stop_\n");
     }
 
+    public void writePeakConstraintLinks(FileWriter chan) throws IOException {
+        if (noeSet!=null) {
+            chan.write("save_peak_constraint_links_" + getId() + "\n");
+            chan.write("_Peak_constraint_link_list.Sf_category                   ");
+            chan.write("peak_constraint_links\n");
+            chan.write("_Peak_constraint_link_list.ID                            ");
+            chan.write(getId() + "\n");
+            chan.write("_Peak_constraint_link_list.Sf_framecode                  ");
+            chan.write("peak_constraint_links_" + getId() + "\n");
+            chan.write("_Peak_constraint_link_list.Name                          ");
+            chan.write("'"+noeSet.getName() + "'\n");
+            chan.write("\n");
+            chan.write("loop_\n");
+            chan.write("_Peak_constraint_link.Constraint_ID\n");
+            chan.write("_Peak_constraint_link.Constraint_ID_item_category\n");
+            chan.write("_Peak_constraint_link.Constraint_list_ID\n");
+            chan.write("_Peak_constraint_link.Constraint_Sf_category\n");
+            chan.write("_Peak_constraint_link.Constraint_Sf_framecode\n");
+            chan.write("_Peak_constraint_link.ID\n");
+            chan.write("_Peak_constraint_link.Peak_constraint_link_list_ID\n");
+            chan.write("_Peak_constraint_link.Peak_ID\n");
+            chan.write("_Peak_constraint_link.Spectral_peak_list_ID\n");
+            chan.write("_Peak_constraint_link.Spectral_peak_list_Sf_category\n");
+            chan.write("_Peak_constraint_link.Spectral_Peak_list_Sf_framecode\n");
+            chan.write("\n");
+
+            int ID = 0;
+            for (Peak peak : peaks()) {
+                ManagedPeak peak2 = (ManagedPeak) peak;
+                for (Noe noe : peak2.getNoes()) {
+                    chan.write(String.format("%d %s %d %s %s %d %d %d %d spectral_peak_list %s\n", noe.starID, noeSet.getType(), noeSet.getId(), noeSet.getCategory(), noeSet.getCategory() + noeSet.getName().replaceAll("\\W", ""), ID++, getId(), peak.getIdNum(), getId(), getName()));
+                }
+            }
+            //a bit hacky to ensure peaklist read in OK.
+            if (ID==0) {
+                chan.write(String.format("%s %s %d %s %s %d %d %s %d spectral_peak_list %s\n", ".", noeSet.getType(), noeSet.getId(), noeSet.getCategory(), noeSet.getCategory() + noeSet.getName().replaceAll("\\W", ""), ID++, getId(), ".", getId(), getName()));
+            }
+            chan.write("stop_\n");
+            chan.write("save_\n\n");
+        }
+    }
 }

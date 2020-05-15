@@ -18,7 +18,9 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.StringConverter;
 import org.nmrfx.project.UmbcProject;
+import org.nmrfx.structure.chemistry.Entity;
 import org.nmrfx.structure.chemistry.Molecule;
 import org.nmrfx.structure.chemistry.RNALabels;
 
@@ -82,7 +84,7 @@ public class RNALabelsSceneController implements Initializable {
     @FXML
     Button showSelGroupButton;
     @FXML
-    ChoiceBox<String> entityChoiceBox;
+    ChoiceBox<Entity> entityChoiceBox;
     @FXML
     TextField firstResidueField;
     @FXML
@@ -192,10 +194,11 @@ public class RNALabelsSceneController implements Initializable {
 
         selGroupList = selGroupListView.getItems();
         clearSelGroupButton.disableProperty().bind(selGroupListView.getSelectionModel().selectedItemProperty().isNull());
+        addSelGroupButton.disableProperty().bind(entityChoiceBox.getSelectionModel().selectedItemProperty().isNull());
         replaceSelGroupButton.disableProperty().bind(selGroupListView.getSelectionModel().selectedItemProperty().isNull());
         showSelGroupButton.disableProperty().bind(selGroupListView.getSelectionModel().selectedItemProperty().isNull());
-        applySelGroupButton.disableProperty().bind(sampleField.valueProperty().isNull());
-        loadSelGroupButton.disableProperty().bind(sampleField.valueProperty().isNull());
+        applySelGroupButton.disableProperty().bind(entityChoiceBox.getSelectionModel().selectedItemProperty().isNull());
+        loadSelGroupButton.disableProperty().bind(entityChoiceBox.getSelectionModel().selectedItemProperty().isNull());
         sampleField.setOnShowing(e -> updateSample());
         entityChoiceBox.setOnShowing(e -> updateMolecule());
         quickCodeField.setOnKeyReleased(e -> {
@@ -204,8 +207,24 @@ public class RNALabelsSceneController implements Initializable {
         });
         updateSample();
         updateMolecule();
-        entityChoiceBox.setValue("*");
+        //entityChoiceBox.setValue("*");
+        entityChoiceBox.setConverter(new StringConverter<Entity>() {
+             @Override
+             public String toString(Entity object) {
+                 return object.getName();
+             }
+             @Override
+             public Entity fromString(String string) {
+                 return null;
+             }
+         }
+        );
+
         sampleField.setOnAction(e -> {
+            this.loadSelGroup();
+        });
+
+        entityChoiceBox.setOnAction(e -> {
             this.loadSelGroup();
         });
     }
@@ -301,9 +320,10 @@ public class RNALabelsSceneController implements Initializable {
         });
     }
 
-    public void setSample(Sample sample) {
+    public void setSampleAndEntity(Sample sample,Entity entity) {
         try {
             sampleField.getSelectionModel().select(sample);
+            entityChoiceBox.setValue(entity);
             this.loadSelGroup();
         } catch (Exception e) {
             System.out.println("No sample named "+sample);
@@ -311,13 +331,13 @@ public class RNALabelsSceneController implements Initializable {
     }
 
     void updateMolecule() {
-        ObservableList<String> entityNames = FXCollections.observableArrayList();
-        entityNames.add("*");
+        ObservableList<Entity> entities = FXCollections.observableArrayList();
+        //entityNames.add("*");
         Molecule mol = Molecule.getActive();
         if (mol != null) {
-            entityNames.addAll(mol.entities.keySet());
+            entities.addAll(mol.entities.values());
         }
-        entityChoiceBox.getItems().setAll(entityNames);
+        entityChoiceBox.getItems().setAll(entities);
 
     }
 
@@ -413,6 +433,7 @@ public class RNALabelsSceneController implements Initializable {
     @FXML
     void applySelGroup() {
         Sample sample = sampleField.getValue();
+        Entity entity = entityChoiceBox.getValue();
         if (sample != null) {
             StringBuilder sBuilder = new StringBuilder();
             for (String selGroup : selGroupList) {
@@ -421,16 +442,17 @@ public class RNALabelsSceneController implements Initializable {
                 }
                 sBuilder.append(selGroup.trim());
             }
-            sample.setLabelString(sBuilder.toString());
+            sample.setEntityLabelString(entity,sBuilder.toString());
         }
     }
 
     @FXML
     void loadSelGroup() {
         Sample sample = sampleField.getValue();
+        Entity entity = entityChoiceBox.getValue();
         selGroupList.clear();
         if (sample != null) {
-            String selGroupPar = sample.getLabelString();
+            String selGroupPar = sample.getEntityLabelString(entity);
             String[] labelStrings = selGroupPar.split(";");
             for (String labelString : labelStrings) {
                 if (!labelString.isEmpty()) {
@@ -512,7 +534,7 @@ public class RNALabelsSceneController implements Initializable {
             StringBuilder sAtoms = new StringBuilder();
 
             if (sBuilder.length() > 0) {
-                sAtoms.append(entityChoiceBox.getValue()).append(":");
+                //sAtoms.append(entityChoiceBox.getValue().getName()).append(":");
                 sAtoms.append(baseChars[iBase]);
                 String range = getResidueRange();
                 sAtoms.append(range).append('.');
@@ -535,7 +557,7 @@ public class RNALabelsSceneController implements Initializable {
         }
         StringBuilder result = new StringBuilder();
         if (!empty) {
-            String entityStr = entityChoiceBox.getValue() + ":";
+            String entityStr = entityChoiceBox.getValue().getName() + ":";
             if (!allMatch) {
                 boolean[] done = new boolean[4];
                 for (int iBase = 0; iBase < 4; iBase++) {
@@ -555,12 +577,13 @@ public class RNALabelsSceneController implements Initializable {
                             if (iBase != 0) {
                                 result.append(' ');
                             }
-                            result.append(entityStr).append(baseValue.toString()).append(suffix[iBase]);
+                            //result.append(entityStr).append(baseValue.toString()).append(suffix[iBase]);
+                            result.append(baseValue.toString()).append(suffix[iBase]);
                         }
                     }
                 }
             } else {
-                result.append(entityStr);
+                //result.append(entityStr);
                 String range = getResidueRange();
                 result.append(range).append('.');
                 result.append(suffix[0]);
@@ -606,7 +629,7 @@ public class RNALabelsSceneController implements Initializable {
         clearAllButtons();
         firstResidueField.setText("");
         lastResidueField.setText("");
-        entityChoiceBox.setValue("*");
+        //entityChoiceBox.setValue(null);
         int index = selGroupListView.getSelectionModel().getSelectedIndex();
         if (index != -1) {
             String selGroupEntry = selGroupList.get(index);
@@ -625,7 +648,9 @@ public class RNALabelsSceneController implements Initializable {
                 if (selGroup.lastRes != null) {
                     lastResidueField.setText(String.valueOf(selGroup.lastRes));
                 }
-                entityChoiceBox.setValue(selGroup.entityStr);
+                Entity entity=Molecule.getActive().entities.get(selGroup.entityStr);
+
+                entityChoiceBox.setValue(entity);
                 for (int iBase = 0; iBase < 4; iBase++) {
                     if (RNALabels.checkResType(baseChars[iBase], selGroup.resTypes)) {
                         for (int iType = 0; iType < 3; iType++) {

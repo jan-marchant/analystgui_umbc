@@ -22,21 +22,12 @@ public class Sample implements Comparable<Sample> {
     private StringProperty name = new SimpleStringProperty();
     private ObjectProperty<Molecule> molecule = new SimpleObjectProperty<>();
     private StringProperty labelString = new SimpleStringProperty("");
-    private ObjectProperty<Condition> condition = new SimpleObjectProperty<>();
-    private HashMap<Atom,Double> atomFraction=new HashMap<>();
+    private HashMap<Atom, Double> atomFraction = new HashMap<>();
+    private HashMap<Entity, String> entityLabelString = new HashMap<>();
 
-    public Sample (String name) {
+    public Sample(String name) {
         setName(name);
         setMolecule(UmbcProject.getActive().activeMol);
-        setCondition(new Condition(name));
-        UmbcProject.getActive().sampleList.add(this);
-    }
-
-    public Sample (String name,String labelString) {
-        setName(name);
-        setMolecule(UmbcProject.getActive().activeMol);
-        setCondition(new Condition(name));
-        setLabelString(labelString);
         UmbcProject.getActive().sampleList.add(this);
     }
 
@@ -59,19 +50,30 @@ public class Sample implements Comparable<Sample> {
     }
 
     public ArrayList<ManagedList> getAssociatedLists() {
-        return new ArrayList<>();
+        ArrayList<ManagedList> toReturn = new ArrayList<>();
+        for (Acquisition acquisition : UmbcProject.getActive().acquisitionTable) {
+            if (acquisition.getSample()==this) {
+                toReturn.addAll(acquisition.getManagedLists());
+            }
+        }
+        return toReturn;
     }
-    public void remove(boolean prompt) {
 
+    public void remove(boolean prompt) {
+//todo implement
     }
 
     public static void addNew() {
-        String base="Sample ";
-        int suffix=1;
-        while (Sample.get(base+suffix)!=null) {
+        if (UmbcProject.getActive().activeMol == null) {
+            GUIUtils.warn("Error", "Molecule must be set before adding samples");
+            return;
+        }
+        String base = "Sample ";
+        int suffix = 1;
+        while (Sample.get(base + suffix) != null) {
             suffix++;
         }
-        new Sample(base+suffix);
+        new Sample(base + suffix);
     }
 
     public static Sample get(String name) {
@@ -108,11 +110,13 @@ public class Sample implements Comparable<Sample> {
     }
 
     public void setupLabels() {
-        boolean rna=false;
-        if (molecule.get()!=null) {
+        boolean rna = false;
+        Entity rnaEnt = null;
+        if (molecule.get() != null) {
             for (Entity entity : molecule.get().entities.values()) {
                 if (entity instanceof Polymer && ((Polymer) entity).isRNA()) {
                     rna = true;
+                    rnaEnt = entity;
                 }
             }
             if (rna) {
@@ -125,7 +129,7 @@ public class Sample implements Comparable<Sample> {
                 } else {
                     System.out.println("Couldn't make rnaLabelsController ");
                 }
-                UMBCApp.rnaLabelsController.setSample(this);
+                UMBCApp.rnaLabelsController.setSampleAndEntity(this, rnaEnt);
             } else {
                 GUIUtils.warn("Not implemented", "Sorry, labelling is only for RNA at the moment");
             }
@@ -134,16 +138,29 @@ public class Sample implements Comparable<Sample> {
         }
     }
 
-    public Condition getCondition() {
-        return condition.get();
-    }
-
-    public ObjectProperty<Condition> conditionProperty() {
-        return condition;
-    }
-
-    public void setCondition(Condition condition) {
-        this.condition.set(condition);
+    public void setupLabels(Entity entity) {
+        boolean rna = false;
+        if (molecule.get() != null) {
+            if (entity instanceof Polymer && ((Polymer) entity).isRNA()) {
+                rna = true;
+            }
+            if (rna) {
+                if (UMBCApp.rnaLabelsController == null) {
+                    UMBCApp.rnaLabelsController = RNALabelsSceneController.create();
+                }
+                if (UMBCApp.rnaLabelsController != null) {
+                    UMBCApp.rnaLabelsController.getStage().show();
+                    UMBCApp.rnaLabelsController.getStage().toFront();
+                } else {
+                    System.out.println("Couldn't make rnaLabelsController ");
+                }
+                UMBCApp.rnaLabelsController.setSampleAndEntity(this, entity);
+            } else {
+                GUIUtils.warn("Not implemented", "Sorry, labelling is only for RNA at the moment");
+            }
+        } else {
+            GUIUtils.warn("No active molecule", "Add a molecule before setting up sample");
+        }
     }
 
     public double getAtomFraction(Atom atom) {
@@ -172,10 +189,10 @@ public class Sample implements Comparable<Sample> {
 
     public double getFraction(Atom atom) {
         //TODO: implement label scheme setup for arbitrary molecules
-        if (atom!=null) {
+        if (atom != null) {
             if (atom.getTopEntity() instanceof Polymer) {
                 if (((Polymer) atom.getTopEntity()).isRNA()) {
-                    return RNALabels.atomPercentLabelString(atom, getLabelString())/100;
+                    return RNALabels.atomPercentLabelString(atom, getLabelString()) / 100;
                 }
             }
             return 1.0;
@@ -185,16 +202,25 @@ public class Sample implements Comparable<Sample> {
         }
     }
 
-    public void setLabelString(String labels) {
-        if (!labels.equals(getLabelString())) {
+    public String getEntityLabelString(Entity entity) {
+        if (entity!=null) {
+            entityLabelString.putIfAbsent(entity, "");
+            return entityLabelString.get(entity);
+        } else {
+            return "";
+        }
+    }
+
+    public void setEntityLabelString(Entity entity, String labels) {
+        if (!labels.equals(getEntityLabelString(entity))) {
             Optional<ButtonType> result;
             if (getAssociatedLists().size() > 0) {
-                if (labelString.get().equals("")) {
+                if (getEntityLabelString(entity).equals("")) {
                     result = Optional.of(ButtonType.OK);
                 } else {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     alert.setTitle("Label Scheme Changed");
-                    alert.setHeaderText("Clear all labelling information for " + this + "?");
+                    alert.setHeaderText("Reset labelling information for " + entity.getName() + "?");
                     alert.setContentText("This includes deleting all associated managed peakLists:" + getAssociatedLists());
                     result = alert.showAndWait();
                 }
@@ -203,7 +229,13 @@ public class Sample implements Comparable<Sample> {
             }
             if (result.get() == ButtonType.OK) {
                 atomFraction.clear();
-                labelString.set(labels);
+                entityLabelString.put(entity, labels.replace(entity.getName()+":",""));
+                updateLabelString();
+                for (Acquisition acquisition : UmbcProject.getActive().acquisitionTable) {
+                    if (acquisition.getSample()==this) {
+                        acquisition.resetAcquisitionTree();
+                    }
+                }
                 for (ManagedList list : getAssociatedLists()) {
                     PeakList.remove(list.getName());
                 }
@@ -217,37 +249,18 @@ public class Sample implements Comparable<Sample> {
     }
 
     public void writeStar3(FileWriter chan) throws IOException {
-/** saveframe sample
- * Tag category Sample
- * Entry_ID	Pointer to '_Entry.ID'	code	yes
- * ID	A value that uniquely identifies the sample described from the other samples listed in the entry.	int	yes
- * Sf_category	Category assigned to the information in the save frame.	code	yes
- * Sf_framecode	A value that uniquely identifies this sample from the other samples listed in the entry.	framecode	yes
- * Sf_ID	An interger value that is the unique identifier for the save frame that applies across the archive. This value is not stable and may be reassigned each time the data are loaded into a database system.	int	yes
- * Type	A descriptive term for the sample that defines the general physical properties of the sample.	line	yes
- *
- * Tag category Sample_component
- * (for individual molecules)
- * Entry_ID	Pointer to '_Entry.ID'	code	yes
- * ID	A value that uniquely identifies each component of the sample in the component list.	int	yes
- * Isotopic_labeling	If this molecule in the sample was isotopically labeled provide a description of the labeling using the methods recommended by the current IUPAC/IUBMB/IUPAB Interunion Task Group	line
- * Mol_common_name	Enter the name for a component of the sample. Include molecules under study (the assembly or entities and ligands) as well as buffers salts reducing agents anti-bacterial agents etc.	line	yes
- * Sample_ID	Pointer to '_Sample.ID'	int	yes
- * Sf_ID	Pointer to '_Sample.Sf_ID'	int	yes
- *
- * */
         if (molecule.get() == null) {
             return;
         }
-        chan.write("save_sample_"+getName()+"\n");
+        chan.write("save_sample_" + getName().replaceAll("\\W", "") + "\n");
         chan.write("_Sample.ID                          ");
         chan.write(getId() + "\n");
         chan.write("_Sample.Name                        ");
-        chan.write(getName() + "\n");
+        chan.write("'" + getName() + "'\n");
         chan.write("_Sample.Sf_category                 ");
         chan.write("sample\n");
         chan.write("_Sample.Sf_framecode                ");
-        chan.write("sample_"+getName()+"\n");
+        chan.write("sample_" + getName().replaceAll("\\W", "") + "\n");
         chan.write("_Sample.Type                        ");
         chan.write(".\n");
         chan.write("\n");
@@ -255,7 +268,7 @@ public class Sample implements Comparable<Sample> {
         //fixme: handle multiple components with independent labeling. Reinstate IsotopeLabels class
         // and replace "molecule" column of table with component, splitting node into number of entities, each with independent labelString
 
-        chan.write("_loop\n");
+        chan.write("loop_\n");
         chan.write("_Sample_component.Sample_ID\n");
         chan.write("_Sample_component.ID\n");
         chan.write("_Sample_component.Mol_common_name\n");
@@ -267,7 +280,7 @@ public class Sample implements Comparable<Sample> {
         Iterator entityIterator = molecule.get().entityLabels.values().iterator();
         while (entityIterator.hasNext()) {
             Entity entity = (Entity) entityIterator.next();
-            chan.write(String.format("%d %d %s %s",getId(),entityID,entity.label,getLabelString().equals("")?"*":getLabelString()));
+            chan.write(String.format("%d %d %s '%s'", getId(), entityID, entity.label, getLabelString().equals("") ? "*" : getLabelString()));
             chan.write("\n");
             entityID++;
         }
@@ -275,15 +288,23 @@ public class Sample implements Comparable<Sample> {
         chan.write("save_\n\n");
     }
 
-    public static void writeAllStar3 (FileWriter chan) throws IOException {
+    public static void writeAllStar3(FileWriter chan) throws IOException {
         for (Sample sample : UmbcProject.getActive().sampleList) {
-            for (Acquisition acquisition : UmbcProject.getActive().acquisitionTable) {
-                if (acquisition.getSample()==sample) {
-                    sample.writeStar3(chan);
-                    break;
-                }
-            }
-
+            sample.writeStar3(chan);
         }
+    }
+
+    public ArrayList<Entity> getEntities() {
+        return molecule.get().getEntities();
+    }
+
+    private void updateLabelString() {
+        String labels="";
+        for (Entity entity : entityLabelString.keySet()) {
+            for (String group : entityLabelString.get(entity).split(" ")) {
+                labels += entity.getName() + ":" + group+" ";
+            }
+        }
+        labelString.set(labels);
     }
 }

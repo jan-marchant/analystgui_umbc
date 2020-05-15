@@ -1,5 +1,7 @@
 package org.nmrfx.processor.gui;
 
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import org.nmrfx.project.UmbcProject;
@@ -10,12 +12,43 @@ import java.io.IOException;
 public class Condition {
     //possibly this should just be a string
     StringProperty name=new SimpleStringProperty();
-    Double temperature;
-    Double pressure;
-    Double pH;
+    DoubleProperty temperature=new SimpleDoubleProperty();
+    DoubleProperty pressure=new SimpleDoubleProperty(1.0);
+    DoubleProperty pH=new SimpleDoubleProperty();
+    StringProperty details=new SimpleStringProperty(".");
+    static int count=0;
+    int id;
+
 
     public Condition(String name) {
         setName(name);
+        UmbcProject.getActive().conditionList.add(this);
+        count++;
+        id=count;
+    }
+
+    public void remove(boolean prompt) {
+//todo: implement
+    }
+
+
+    public static Condition get(String name) {
+        for (Condition condition : UmbcProject.getActive().conditionList) {
+            if (condition.getName().equals(name)) {
+                return condition;
+            }
+        }
+        return null;
+
+    }
+
+    public static void addNew () {
+        String base="Condition ";
+        int suffix=1;
+        while (Condition.get(base+suffix)!=null) {
+            suffix++;
+        }
+        new Condition(base+suffix);
     }
 
     public String toString() {
@@ -35,83 +68,67 @@ public class Condition {
     }
 
     public int getId() {
-        //fixme
-        return 0;
+        return id;
     }
 
-    public String getDetails() {
-        //fixme
-        return ".";
+    /*public String getDetails() {
+        return details;
     }
 
-    private String getPhErr() {
-        return "-";
+    public void setDetails(String text) {
+        details=text;
+    }*/
+
+    private String getpHErr() {
+        //todo
+        return "0";
     }
 
-    private String getPh() {
+    /*private String getPh() {
         return pH.toString();
-    }
+    }*/
 
     private String getPressureErr() {
-        return "-";
+        return "0";
     }
 
-    private String getPressure() {
+    /*private String getPressure() {
         return pressure.toString();
-    }
+    }*/
 
     private String getTemperatureErr() {
-        return "-";
+        return "0";
     }
 
-    private String getTemperature() {
+    /*private String getTemperature() {
         return temperature.toString();
-    }
+    }*/
 
     public void writeStar3(FileWriter chan) throws IOException {
-/** saveframe sample_conditions
- * tag Sample_condition_list (loop: no)
- * Details	General details describing conditions of both the sample and the environment during measurements.	text
- * Entry_ID	Pointer to '_Entry.ID'	code	yes
- * ID	A value that uniquely identifies the set of sample conditions from other sample	int	yes
- * Name	A descriptive name that uniquely identifies this set of sample conditions within the entry.	line
- * Sf_category	Category assigned to the information in the save frame.	code	yes
- * Sf_framecode	A descriptive label that uniquely identifies this set of sample conditions within an entry.	framecode	yes
- * Sf_ID	An interger value that is the unique identifier for the save frame that applies across the archive. This value is not stable and may be reassigned each time the data are loaded into a database system.	int	yes
- *
- * tag Sample_condition_variable
- * Entry_ID	Pointer to '_Entry.ID'	code	yes
- * Sample_condition_list_ID	Pointer to '_Sample_condition_list.ID'	int	yes
- * Sf_ID	Pointer to '_Sample_condition_list.Sf_ID'	int	yes
- * Type	The variable used to define a specific sample condition (i.e. temperature)used when conducting experiments used to derive the experimental data included in the file.	line	yes
- * Val	Value for the variable (temperature pressure pH). Units will be listed below.	line
- * Val_err	Estimate the standard error on the value for the sample condition.	line
- * Val_units	Units for the value of the sample condition (temperature pressure pH).	line
- * */
-        chan.write("save_sample_conditions"+getName()+"\n");
+        chan.write("save_sample_conditions"+getName().replaceAll("\\W", "")+"\n");
         chan.write("_Sample_condition_list.ID                          ");
         chan.write(getId() + "\n");
         chan.write("_Sample_condition_list.Name                ");
-        chan.write(getName() + "\n");
+        chan.write("'"+getName() + "'\n");
         chan.write("_Sample_condition_list.Sf_category                 ");
         chan.write("sample_conditions\n");
         chan.write("_Sample_condition_list.Sf_framecode                ");
-        chan.write("sample_conditions"+getName()+"\n");
+        chan.write("sample_conditions"+getName().replaceAll("\\W", "")+"\n");
         chan.write("_Sample_condition_list.Details                        ");
-        chan.write(getDetails() + "\n");
+        chan.write("'"+getDetails() + "'\n");
         chan.write("\n");
 
-        chan.write("_loop");
-        chan.write("Sample_condition_variable.Sample_condition_list_ID");
-        chan.write("Sample_condition_variable.Type");
-        chan.write("Sample_condition_variable.Val");
-        chan.write("Sample_condition_variable.Val_err");
-        chan.write("Sample_condition_variable.Val_units");
+        chan.write("loop_\n");
+        chan.write("_Sample_condition_variable.Sample_condition_list_ID\n");
+        chan.write("_Sample_condition_variable.Type\n");
+        chan.write("_Sample_condition_variable.Val\n");
+        chan.write("_Sample_condition_variable.Val_err\n");
+        chan.write("_Sample_condition_variable.Val_units\n");
         chan.write("\n");
 
         chan.write(String.format("%d temperature %s %s K\n",getId(),getTemperature(),getTemperatureErr()));
-        chan.write(String.format("%d pressure %s %s atm\n",getId(),getPressure(),getPressureErr()));
-        chan.write(String.format("%d pH %s %s -\n",getId(),getPh(),getPhErr()));
+        chan.write(String.format("%d pressure    %s %s atm\n",getId(),getPressure(),getPressureErr()));
+        chan.write(String.format("%d pH          %s %s -\n",getId(),getpH(), getpHErr()));
 
         chan.write("stop_\n");
         chan.write("save_\n\n");
@@ -119,12 +136,71 @@ public class Condition {
 
     public static void writeAllStar3 (FileWriter chan) throws IOException {
         for (Condition condition : UmbcProject.getActive().conditionList) {
-            for (Acquisition acquisition : UmbcProject.getActive().acquisitionTable) {
-                if (acquisition.getSample().getCondition()==condition) {
-                    condition.writeStar3(chan);
-                    break;
-                }
-            }
+            condition.writeStar3(chan);
         }
+    }
+
+    public void setVariable(String type, double val, double valErr) {
+        switch (type) {
+            case "temperature":
+                setTemperature(val);
+                break;
+            case "pressure":
+                setPressure(val);
+                break;
+            case "pH":
+                setpH(val);
+                break;
+            default:
+                System.out.println("Couldn't process condition value for "+type);
+        }
+    }
+
+    public double getTemperature() {
+        return temperature.get();
+    }
+
+    public DoubleProperty temperatureProperty() {
+        return temperature;
+    }
+
+    public void setTemperature(double temperature) {
+        this.temperature.set(temperature);
+    }
+
+    public double getPressure() {
+        return pressure.get();
+    }
+
+    public DoubleProperty pressureProperty() {
+        return pressure;
+    }
+
+    public void setPressure(double pressure) {
+        this.pressure.set(pressure);
+    }
+
+    public double getpH() {
+        return pH.get();
+    }
+
+    public DoubleProperty pHProperty() {
+        return pH;
+    }
+
+    public void setpH(double pH) {
+        this.pH.set(pH);
+    }
+
+    public String getDetails() {
+        return details.get();
+    }
+
+    public StringProperty detailsProperty() {
+        return details;
+    }
+
+    public void setDetails(String details) {
+        this.details.set(details);
     }
 }

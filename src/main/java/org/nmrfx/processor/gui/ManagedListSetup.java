@@ -1,7 +1,6 @@
 package org.nmrfx.processor.gui;
 
 import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.HPos;
 import javafx.geometry.Pos;
@@ -12,15 +11,11 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.StringConverter;
-import javafx.util.converter.DefaultStringConverter;
-import javafx.util.converter.IntegerStringConverter;
 import org.nmrfx.processor.datasets.Nuclei;
 import org.nmrfx.processor.datasets.peaks.PeakList;
-import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
-import java.beans.EventHandler;
 import java.util.*;
 import java.util.function.UnaryOperator;
 
@@ -222,19 +217,19 @@ public class ManagedListSetup {
                         //labString += " using NOE set: ";
                         //noeType.getItems().setAll(Connectivity.NOETYPE.values());
                         noeSet.setMaxWidth(Double.MAX_VALUE);
-                        noeSet.getItems().setAll(acquisition.getProject().noeSetMap.values());
+                        noeSet.getItems().setAll(acquisition.getProject().NOE_SETS.values());
                         noeSet.setPromptText("NOE Set:");
                         noeSet.setConverter(new StringConverter<NoeSet>() {
 
                             @Override
                             public String toString(NoeSet noeSet) {
-                                Optional<Map.Entry<String, NoeSet>> optionalEntry = acquisition.getProject().noeSetMap.entrySet().stream().filter(ap -> ap.getValue().equals(noeSet)).findFirst();
+                                Optional<Map.Entry<String, NoeSet>> optionalEntry = acquisition.getProject().NOE_SETS.entrySet().stream().filter(ap -> ap.getValue().equals(noeSet)).findFirst();
                                 return (optionalEntry.isPresent() ? optionalEntry.get().getKey() : null);
                             }
 
                             @Override
                             public NoeSet fromString(String string) {
-                                return acquisition.getProject().noeSetMap.get(string);
+                                return acquisition.getProject().NOE_SETS.get(string);
                             }
                         });
 
