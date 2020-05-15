@@ -196,15 +196,15 @@ public class Acquisition {
             if (expDim.getNextCon() != null && (expDim.getNextCon().type == Connectivity.TYPE.NOE)) {
                 Atom atom1 = null;
                 Atom atom2 = null;
-                PeakDim peakDim1 = null;
-                PeakDim peakDim2 = null;
+                AtomResonance resonance1 = null;
+                AtomResonance resonance2 = null;
                 if (expDim.isObserved()) {
-                    peakDim1=newPeak.getPeakDim(list.getDimMap().get(expDim));
-                    atom1 = ((AtomResonance) peakDim1.getResonance()).getAtom();
+                    resonance1=(AtomResonance) newPeak.getPeakDim(list.getDimMap().get(expDim)).getResonance();
+                    atom1 = resonance1.getAtom();
                 }
                 if (expDim.getNextExpDim().isObserved()) {
-                    peakDim2=newPeak.getPeakDim(list.getDimMap().get(expDim.getNextExpDim()));
-                    atom2 = ((AtomResonance) peakDim2.getResonance()).getAtom();
+                    resonance2=(AtomResonance) newPeak.getPeakDim(list.getDimMap().get(expDim.getNextExpDim())).getResonance();
+                    atom2 = resonance2.getAtom();
                 }
                 boolean add = true;
                 if (atom1 == null || atom2 == null) {
@@ -221,12 +221,12 @@ public class Acquisition {
                     add=false;
                 }
                 if (add) {
-                    if (!noeExists(list.noeSet, peakDim1,peakDim2)) {
+                    if (!noeExists(list.noeSet, resonance1,resonance2)) {
                         //fixme: is this an OK use of newScale?
                         AcqNode node1 = acqTree.getNode(expDim, atom1);
                         AcqNode node2 = acqTree.getNode(expDim.getNextExpDim(), atom2);
                         if (node1 != null && node2 != null) {
-                            Noe noe = new Noe(newPeak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction,peakDim1,peakDim2);
+                            Noe noe = new Noe(newPeak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction,resonance1,resonance2);
                             noe.setIntensity(newPeak.getIntensity());
                             list.setAddedNoe(noe);
                             list.noeSet.add(noe);
@@ -245,18 +245,21 @@ public class Acquisition {
         return addedPeaks;
     }
 
-    public boolean noeExists(NoeSet noeSet, PeakDim peakDim1,PeakDim peakDim2) {
-        Atom atom1 = ((AtomResonance) peakDim1.getResonance()).getAtom();
-        Atom atom2 = ((AtomResonance) peakDim2.getResonance()).getAtom();
+    public boolean noeExists(NoeSet noeSet, AtomResonance resonance1,AtomResonance resonance2) {
+        Atom atom1 = resonance1.getAtom();
+        Atom atom2 = resonance2.getAtom();
         for (Noe noe : noeSet.get()) {
             boolean seen1=false;
             boolean seen2=false;
             for (PeakDim testPeakDim : noe.peak.getPeakDims()) {
                 Atom testAtom=((AtomResonance) testPeakDim.getResonance()).getAtom();
-                if (testAtom==atom1 && testPeakDim.getChemShiftSet()==peakDim1.getChemShiftSet()) {
+                //if (testAtom==atom1 && testPeakDim.getChemShiftSet()==resonance1.getChemShiftSet()) {
+                //TODO: implement chemical shift sets
+                if (testAtom==atom1) {
                     seen1=true;
                 }
-                if (testAtom==atom2 && testPeakDim.getChemShiftSet()==peakDim2.getChemShiftSet()) {
+                //if (testAtom==atom2 && testPeakDim.getChemShiftSet()==resonance2.getChemShiftSet()) {
+                if (testAtom==atom2) {
                     seen2=true;
                 }
             }

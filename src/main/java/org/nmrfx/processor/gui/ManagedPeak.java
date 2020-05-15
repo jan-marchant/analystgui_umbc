@@ -28,12 +28,12 @@ public class ManagedPeak extends Peak {
             boolean done=false;
             PeakDim refPeakDim=getPeakDim(i);
             for (Noe noe : noes) {
-                if (noe.spg1.getAnAtom()==atoms.get(i)) {
-                    refPeakDim=noe.getPeakDim1();
+                if (noe.getResonance1().getAtom()==atoms.get(i)) {
+                    refPeakDim=noe.getResonance1().getPeakDims().get(0);
                     done=true;
                 }
-                if (noe.spg2.getAnAtom()==atoms.get(i)) {
-                    refPeakDim=noe.getPeakDim2();
+                if (noe.getResonance2().getAtom()==atoms.get(i)) {
+                    refPeakDim=noe.getResonance2().getPeakDims().get(0);
                     done=true;
                 }
             }

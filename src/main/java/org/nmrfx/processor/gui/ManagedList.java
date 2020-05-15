@@ -118,7 +118,7 @@ public class ManagedList extends PeakList {
     }
 
     public void loadPeak(ManagedPeak newPeak) {
-            newPeak.initPeakDimContribs();
+            //newPeak.initPeakDimContribs();
             peaks().add(newPeak);
             clearIndex();
     }

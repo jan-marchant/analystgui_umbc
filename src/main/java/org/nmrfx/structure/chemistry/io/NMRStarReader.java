@@ -782,18 +782,30 @@ public class NMRStarReader {
     public void linkResonances() {
         ResonanceFactory resFactory = PeakDim.resFactory();
         for (Long resID : resMap.keySet()) {
-            List<PeakDim> peakDims = resMap.get(resID);
-            PeakDim firstPeakDim = peakDims.get(0);
-            Resonance resonance = resFactory.build(resID);
-            firstPeakDim.setResonance(resonance);
-            resonance.add(firstPeakDim);
-            if (peakDims.size() > 1) {
-                for (PeakDim peakDim : peakDims) {
-                    if (peakDim != firstPeakDim) {
-                        PeakList.linkPeakDims(firstPeakDim, peakDim);
-                    }
-                }
+            if (resID==-1L) {
+                continue;
             }
+            List<PeakDim> peakDims = resMap.get(resID);
+            //PeakDim firstPeakDim = peakDims.get(0);
+            Resonance resonance = resFactory.build(resID);
+            //firstPeakDim.setResonance(resonance);
+            //resonance.add(firstPeakDim);
+            //if (peakDims.size() > 1) {
+                for (PeakDim peakDim : peakDims) {
+                    //if (peakDim != firstPeakDim) {
+                        peakDim.setResonance(resonance);
+                        if (!resonance.getPeakDims().contains(peakDim)) {
+                            resonance.add(peakDim);
+                        }
+                        //PeakList.linkPeakDims(firstPeakDim, peakDim);
+                    //}
+                }
+            //}
+        }
+        for (PeakDim peakDim : resMap.get(-1L)) {
+            Resonance resonance = resFactory.build();
+            peakDim.setResonance(resonance);
+            resonance.add(peakDim);
         }
     }
 
@@ -1406,7 +1418,7 @@ public class NMRStarReader {
                             continue;
                         }
                         int sDim = 0;
-                        long resonanceID = -1;
+                        long resonanceID = -1L;
                         if ((value = NvUtil.getColumnValue(spectralDimColumn, i)) != null) {
                             sDim = NvUtil.toInt(value) - 1;
                         } else {
@@ -1420,9 +1432,10 @@ public class NMRStarReader {
                         }
                         Peak peak = peakList.getPeakByID(idNum);
                         PeakDim peakDim = peak.getPeakDim(sDim);
-                        if (resonanceID != -1) {
+                        //if (resonanceID != -1) {
+                        resMap.putIfAbsent(-1L, new ArrayList<>());
                             addResonance(resonanceID, peakDim);
-                        }
+                        //}
 //                    Resonance res = resFactory.get(resonanceID);
 //                    if (res == null) {
 //                        resFactory.build(resonanceID);
@@ -1789,7 +1802,7 @@ public class NMRStarReader {
         entityIDColumns[1] = loop.getColumnAsList("Entity_ID_2");
         compIdxIDColumns[1] = loop.getColumnAsList("Comp_index_ID_2");
         atomColumns[1] = loop.getColumnAsList("Atom_ID_2");
-        resonanceColumns[0] = loop.getColumnAsList("Resonance_ID_2");
+        resonanceColumns[1] = loop.getColumnAsList("Resonance_ID_2");
         List<String> constraintIDColumn = loop.getColumnAsList("ID");
         List<String> lowerColumn = loop.getColumnAsList("Distance_lower_bound_val");
         List<String> upperColumn = loop.getColumnAsList("Distance_upper_bound_val");
@@ -1886,7 +1899,15 @@ public class NMRStarReader {
                     int idNum = Integer.parseInt(peakID);
                     peak = peakList.getPeakByID(idNum);
                 }
-                Noe noe = new Noe(peak, spSets[0], spSets[1], 1.0);
+                AtomResonanceFactory resFactory = (AtomResonanceFactory) PeakDim.resFactory();
+                Noe noe;
+                try {
+                    AtomResonance resonance1 = (AtomResonance) resFactory.get(Long.parseLong(resIDStr[0]));
+                    AtomResonance resonance2 = (AtomResonance) resFactory.get(Long.parseLong(resIDStr[1]));
+                    noe = new Noe(peak, spSets[0], spSets[1], 1.0,resonance1,resonance2);
+                } catch (Exception e) {
+                    noe = new Noe(peak, spSets[0], spSets[1], 1.0);
+                }
                 noe.starID=Integer.parseInt(constraintID);
                 double upper = 1000000.0;
                 if (upperValue.equals(".")) {

@@ -244,14 +244,16 @@ public class AcqTree {
         for (ExpDim expDim : acquisition.getExperiment().expDims) {
             if (expDim.getNextCon()!=null && (expDim.getNextCon().type==Connectivity.TYPE.NOE)) {
                 //HashMap<ExpDim,Integer> dimMap = ((ManagedList) noe.peak.getPeakList()).getDimMap();
-                PeakDim peakDim1=noe.getPeakDim1();
-                PeakDim peakDim2=noe.getPeakDim2();
+                //PeakDim peakDim1=noe.getPeakDim1();
+                //PeakDim peakDim2=noe.getPeakDim2();
                 ////this is not appropriate for SpatialSetGroups with more than one atom (i.e. ambiguous peak assignments)
                 //Atom atom1=noe.spg1.getAnAtom();
                 //Atom atom2=noe.spg2.getAnAtom();
                 //fixme: add check for null peakDims
-                Atom atom1=((AtomResonance) peakDim1.getResonance()).getAtom();
-                Atom atom2=((AtomResonance) peakDim2.getResonance()).getAtom();
+                //Atom atom1=((AtomResonance) peakDim1.getResonance()).getAtom();
+                //Atom atom2=((AtomResonance) peakDim2.getResonance()).getAtom();
+                Atom atom1=noe.getResonance1().getAtom();
+                Atom atom2=noe.getResonance2().getAtom();
                 double intensity = noe.getIntensity()/noe.getScale();
                 AcqNode node1 = getNode(expDim,atom1);
                 AcqNode node2 = getNode(expDim.getNextExpDim(),atom2);

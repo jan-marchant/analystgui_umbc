@@ -269,7 +269,7 @@ public class AcqNodeChooser {
                                 }
 
                             }
-                            Noe noe = new Noe(peak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction,peakDim1,peakDim2);
+                            Noe noe = new Noe(peak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction,(AtomResonance) peakDim1.getResonance(),(AtomResonance) peakDim2.getResonance());
                             noe.setIntensity(peak.getIntensity());
 
                             if (list.getAddedNoe()==null) {
