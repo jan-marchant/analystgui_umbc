@@ -36,7 +36,6 @@ import org.nmrfx.structure.utilities.Util;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  *
@@ -52,6 +51,7 @@ public class NMRStarReader {
     Map entities = new HashMap();
     boolean hasResonances = false;
     Map<Long, List<PeakDim>> resMap = new HashMap<>();
+    List<PeakDim> peakDimsWithoutRes = new ArrayList<>();
     public static boolean DEBUG = false;
 
     public NMRStarReader(final File starFile, final STAR3 star3) {
@@ -688,6 +688,7 @@ public class NMRStarReader {
 
     public void buildPeakLists() throws ParseException {
         resMap.clear();
+        peakDimsWithoutRes.clear();
         for (Saveframe saveframe : star3.getSaveFrames().values()) {
             if (saveframe.getCategoryName().equals("spectral_peak_list")) {
                 if (DEBUG) {
@@ -701,7 +702,7 @@ public class NMRStarReader {
                 }
             }
         }
-        linkResonances();
+        addMissingResonances();
     }
 
     public void buildResonanceLists() throws ParseException {
@@ -770,39 +771,9 @@ public class NMRStarReader {
         return spg;
     }
 
-    private void addResonance(long resID, PeakDim peakDim) {
-        List<PeakDim> peakDims = resMap.get(resID);
-        if (peakDims == null) {
-            peakDims = new ArrayList<>();
-            resMap.put(resID, peakDims);
-        }
-        peakDims.add(peakDim);
-    }
-
-    public void linkResonances() {
+    public void addMissingResonances() {
         ResonanceFactory resFactory = PeakDim.resFactory();
-        for (Long resID : resMap.keySet()) {
-            if (resID==-1L) {
-                continue;
-            }
-            List<PeakDim> peakDims = resMap.get(resID);
-            //PeakDim firstPeakDim = peakDims.get(0);
-            Resonance resonance = resFactory.build(resID);
-            //firstPeakDim.setResonance(resonance);
-            //resonance.add(firstPeakDim);
-            //if (peakDims.size() > 1) {
-                for (PeakDim peakDim : peakDims) {
-                    //if (peakDim != firstPeakDim) {
-                        peakDim.setResonance(resonance);
-                        if (!resonance.getPeakDims().contains(peakDim)) {
-                            resonance.add(peakDim);
-                        }
-                        //PeakList.linkPeakDims(firstPeakDim, peakDim);
-                    //}
-                }
-            //}
-        }
-        for (PeakDim peakDim : resMap.get(-1L)) {
+        for (PeakDim peakDim : peakDimsWithoutRes) {
             Resonance resonance = resFactory.build();
             peakDim.setResonance(resonance);
             resonance.add(peakDim);
@@ -1109,14 +1080,12 @@ public class NMRStarReader {
                         }
                         Peak peak = peakList.getPeakByID(idNum);
                         PeakDim peakDim = peak.getPeakDim(sDim);
-                        if (resonanceID != -1) {
-                            addResonance(resonanceID, peakDim);
+                        if (resonanceID == -1L) {
+                            peakDimsWithoutRes.add(peakDim);
+                        } else {
+                            Resonance resonance = resFactory.build(resonanceID);
+                            resonance.add(peakDim);
                         }
-//                    Resonance res = resFactory.get(resonanceID);
-//                    if (res == null) {
-//                        resFactory.build(resonanceID);
-//                    }
-//                    peakDim.setResonance(resonanceID);
                     }
                 } else {
                     System.out.println("No \"Assigned Peak Chem Shift\" loop");
@@ -1315,8 +1284,9 @@ public class NMRStarReader {
                 if ((value = NvUtil.getColumnValue(cornerColumn, i)) != null) {
                     peak.setCorner(value);
                 }
-                peakList.loadPeak(peak);  // old code added without creating resonance, but that caused problems with new
-                // linking resonance code used here
+
+                peakList.peaks().add(peak);
+                peakList.clearIndex();
             }
 
             loop = saveframe.getLoop("_Peak_general_char");
@@ -1432,15 +1402,12 @@ public class NMRStarReader {
                         }
                         Peak peak = peakList.getPeakByID(idNum);
                         PeakDim peakDim = peak.getPeakDim(sDim);
-                        //if (resonanceID != -1) {
-                        resMap.putIfAbsent(-1L, new ArrayList<>());
-                            addResonance(resonanceID, peakDim);
-                        //}
-//                    Resonance res = resFactory.get(resonanceID);
-//                    if (res == null) {
-//                        resFactory.build(resonanceID);
-//                    }
-//                    peakDim.setResonance(resonanceID);
+                        if (resonanceID == -1L) {
+                            peakDimsWithoutRes.add(peakDim);
+                        } else {
+                            Resonance resonance = resFactory.build(resonanceID);
+                            resonance.add(peakDim);
+                        }
                     }
                 } else {
                     System.out.println("No \"Assigned Peak Chem Shift\" loop");
@@ -1741,19 +1708,7 @@ public class NMRStarReader {
         if (loop == null) {
             throw new ParseException("No \"_Peak_constraint_link\" loop");
         }
-        /**
-         *             chan.write("_Peak_constraint_link.Constraint_ID\n");
-         *             chan.write("_Peak_constraint_link.Constraint_ID_item_category\n");
-         *             chan.write("_Peak_constraint_link.Constraint_list_ID\n");
-         *             chan.write("_Peak_constraint_link.Constraint_Sf_category\n");
-         *             chan.write("_Peak_constraint_link.Constraint_Sf_framecode\n");
-         *             chan.write("_Peak_constraint_link.ID\n");
-         *             chan.write("_Peak_constraint_link.Peak_constraint_link_list_ID\n");
-         *             chan.write("_Peak_constraint_link.Peak_ID\n");
-         *             chan.write("_Peak_constraint_link.Spectral_peak_list_ID\n");
-         *             chan.write("_Peak_constraint_link.Spectral_peak_list_Sf_category\n");
-         *             chan.write("_Peak_constraint_link.Spectral_Peak_list_Sf_framecode\n");
-         */
+
         List<String> constraintIDColumn = loop.getColumnAsList("Constraint_ID");
         List<String> peakIDColumn = loop.getColumnAsList("Peak_ID");
         List<String> listNameColumn = loop.getColumnAsList("Spectral_Peak_list_Sf_framecode");

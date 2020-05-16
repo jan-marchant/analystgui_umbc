@@ -229,7 +229,7 @@ public class AcqNodeChooser {
         for (Map.Entry<ExpDim,AcqNode> picked : pickedSet.entrySet()) {
             ExpDim expDim=picked.getKey();
             Connectivity nextCon=expDim.getNextCon();
-            if (nextCon!=null && nextCon.type== Connectivity.TYPE.NOE) {
+            if (nextCon!=null && nextCon.type==Connectivity.TYPE.NOE) {
                 AcqNode node1=picked.getValue();
                 AcqNode node2=pickedSet.get(expDim.getNextExpDim());
                 Atom atom1=node1.getAtom();

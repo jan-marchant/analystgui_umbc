@@ -117,12 +117,6 @@ public class ManagedList extends PeakList {
         }
     }
 
-    public void loadPeak(ManagedPeak newPeak) {
-            //newPeak.initPeakDimContribs();
-            peaks().add(newPeak);
-            clearIndex();
-    }
-
     @Override
     public ManagedPeak addPeak(Peak pickedPeak) {
         if (noeSet==null) {
@@ -163,6 +157,7 @@ public class ManagedList extends PeakList {
         }
         List<ManagedPeak> addedPeaks = acquisition.addNoes(this,pickedPeak);
         */
+        PeakAtomPicker peakAtomPicker = new PeakAtomPicker();
         //Use AcqNodeChooser with picked peak
         AcqNodeChooser chooser = new AcqNodeChooser(this,pickedPeak);
         chooser.create();
@@ -278,8 +273,8 @@ public class ManagedList extends PeakList {
         } else {
             startNode=firstEdge.getNode();
         }
-        for (HashMap<ExpDim, AcqTree.Edge> path :
-                acquisition.getAcqTree().getPathEdgesMiddleOut(firstEdge,true,startNode,startNode,new HashMap<>(),new ArrayList<>(), this.noeSet)) {
+        List<HashMap<ExpDim, AcqTree.Edge>> paths=acquisition.getAcqTree().getPathEdgesMiddleOut(firstEdge,true,startNode,startNode,new HashMap<>(),new ArrayList<>(), this.noeSet);
+        for (HashMap<ExpDim, AcqTree.Edge> path : paths) {
             addedPeaks.add(addPeakFromPath(path));
         }
         return addedPeaks;

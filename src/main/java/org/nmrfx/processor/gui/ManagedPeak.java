@@ -2,6 +2,7 @@ package org.nmrfx.processor.gui;
 
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
+import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.PPMv;
@@ -10,6 +11,8 @@ import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
 import java.util.*;
+
+import static org.nmrfx.processor.datasets.peaks.PeakDim.resFactory;
 
 public class ManagedPeak extends Peak {
     private Set<Noe> noes=new HashSet<>();
@@ -21,29 +24,90 @@ public class ManagedPeak extends Peak {
     public ManagedPeak(PeakList peakList, int nDim, Set<Noe> noes, HashMap<Integer, Atom> atoms) {
         super(peakList, nDim);
         this.noes=noes;
-        initPeakDimContribs();
-        //use NOE array to set resonances of NOE dims. But what about non NOE dims?
+
+        float scale=1f;
         for (int i = 0; i < nDim; i++) {
-            //todo: ensure atom resonance set, choose PeakDim with more discrimination!
-            boolean done=false;
-            PeakDim refPeakDim=getPeakDim(i);
+            PeakDim peakDim0=null;
+            AtomResonance resonance=null;
             for (Noe noe : noes) {
                 if (noe.getResonance1().getAtom()==atoms.get(i)) {
-                    refPeakDim=noe.getResonance1().getPeakDims().get(0);
-                    done=true;
+                    resonance=noe.getResonance1();
+                    for (PeakDim peakDim : noe.peak.getPeakDims()) {
+                        if (peakDim.getResonance()==resonance) {
+                            peakDim0=peakDim;
+                        }
+                    }
                 }
                 if (noe.getResonance2().getAtom()==atoms.get(i)) {
-                    refPeakDim=noe.getResonance2().getPeakDims().get(0);
-                    done=true;
+                    resonance=noe.getResonance2();
+                    for (PeakDim peakDim : noe.peak.getPeakDims()) {
+                        if (peakDim.getResonance()==resonance) {
+                            peakDim0=peakDim;
+                        }
+                    }
                 }
             }
-            if (!done && atoms.get(i).getResonance()!=null &&
-                    atoms.get(i).getResonance().getPeakDims().size()>0) {
-                refPeakDim=atoms.get(i).getResonance().getPeakDims().get(0);
-                done=true;
+            if (resonance==null && atoms.get(i).getResonance()!=null) {
+                resonance=atoms.get(i).getResonance();
             }
-            if (!done) {
-                atoms.get(i).setResonance((AtomResonance) getPeakDim(i).getResonance());
+            if (resonance==null) {
+                resonance = (AtomResonance) resFactory().build();
+            }
+            resonance.add(this.getPeakDim(i));
+            this.getPeakDim(i).setLabel(atoms.get(i).getShortName());
+            atoms.get(i).setResonance(resonance);
+
+            Dataset dataset=((ManagedList) peakList).getAcquisition().getDataset();
+            float width=(float) dataset.ptWidthToPPM(i,2);
+            if (width<0.01f) {width=0.01f;}
+            switch (atoms.get(i).getElementName()) {
+                case "C":
+                case "N":
+                    width *= 10f;
+                    scale=3f;
+                    break;
+                default:
+                    width *= 1f;
+            }
+
+
+            if (peakDim0!=null) {
+                PeakDim thisPeakDim=this.getPeakDim(i);
+                if (thisPeakDim.getSpectralDim()==peakDim0.getSpectralDim()) {
+                    Dataset dataset0=Dataset.getDataset(peakDim0.getPeakList().getDatasetName());
+                    if (dataset0!=null) {
+                        width = (float) (peakDim0.getLineWidthValue()*dataset.ptWidthToPPM(i,2)/dataset0.ptWidthToPPM(peakDim0.getSpectralDim(),2));
+                    }
+                }
+                Float pickedShift = peakDim0.getChemShift();
+
+                List<PeakDim> peakDims = peakDim0.getResonance().getPeakDims();
+                Set<PeakDim> updateMe = new HashSet<>();
+                updateMe.add(thisPeakDim);
+                Boolean freezeMe = false;
+
+                for (PeakDim peakDim : peakDims) {
+                    if (peakDim == peakDim0 || peakDim==thisPeakDim) {
+                        continue;
+                    }
+                    if (peakDim.getSampleConditionLabel().equals(thisPeakDim.getSampleConditionLabel())
+                    && peakDim.getSampleLabel().equals(thisPeakDim.getSampleLabel())) {
+                        if (peakDim.isFrozen()) {
+                            pickedShift = peakDim.getChemShift();
+                            freezeMe = true;
+                        } else {
+                            updateMe.add(peakDim);
+                        }
+                        if (thisPeakDim.getSpectralDimObj()==peakDim.getSpectralDimObj()) {
+                            width = peakDim.getLineWidthValue();
+                        }
+                    }
+                }
+                for (PeakDim peakDim : updateMe) {
+                    peakDim.setChemShift(pickedShift);
+                }
+                thisPeakDim.setFrozen(freezeMe);
+            } else {
                 PPMv ppm;
                 ppm = atoms.get(i).getPPM(((ManagedList) getPeakList()).getPpmSet());
                 if (ppm == null) {
@@ -53,28 +117,13 @@ public class ManagedPeak extends Peak {
                     this.getPeakDim(i).setChemShift((float) ppm.getValue());
                     this.getPeakDim(i).setChemShiftErrorValue((float) ppm.getError());
                 }
-
-                float width;
-                switch (atoms.get(i).getElementName()) {
-                    case "H":
-                        width = 0.04f;
-                        break;
-                    case "C":
-                    case "N":
-                        width = 0.4f;
-                        break;
-                    default:
-                        width = 0.01f;
-                }
-                this.getPeakDim(i).setLineWidthValue(width);
-                this.getPeakDim(i).setBoundsValue(width*1.5f);
-            } else {
-                refPeakDim.copyTo(this.getPeakDim(i));
-                this.getPeakDim(i).setResonance(refPeakDim.getResonance());
-                //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
-                this.getPeakDim(i).getResonance().add(this.getPeakDim(i));
             }
-            this.getPeakDim(i).setLabel(atoms.get(i).getShortName());
+
+            this.getPeakDim(i).setLineWidthValue(width);
+        }
+        for (PeakDim peakDim : getPeakDims()) {
+            peakDim.setLineWidthValue(peakDim.getLineWidthValue()*scale);
+            peakDim.setBoundsValue(peakDim.getLineWidthValue()*1.5f);
         }
 
         if (((ManagedList) peakList).noeSet!=null) {
@@ -90,63 +139,8 @@ public class ManagedPeak extends Peak {
         }
     }
 
-    public ManagedPeak(PeakList peakList, Peak peak,Set<Noe> noes) {
-        super(peakList, peak.getPeakDims().length);
-        this.noes=noes;
-        peak.copyTo(this);
-        for (int i = 0; i < peak.getPeakDims().length; i++) {
-            this.getPeakDim(i).setResonance(peak.getPeakDim(i).getResonance());
-            //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
-            peak.getPeakDim(i).getResonance().add(this.getPeakDim(i));
-        }
-        ((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-            while (c.next()) {
-                for (Noe removedNoe : c.getRemoved()) {
-                    if (noes.contains(removedNoe)) {
-                        remove();
-                    }
-                }
-            }
-        });
-    }
-
     public ManagedPeak(PeakList peakList, int nDim) {
         super(peakList, nDim);
-        /*((ManagedList) peakList).noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-            while (c.next()) {
-                for (Noe removedNoe : c.getRemoved()) {
-                    if (noes.contains(removedNoe)) {
-                        remove();
-                    }
-                }
-            }
-        });*/
-    }
-
-    public ManagedPeak(PeakList peakList,Peak peak) {
-        //Allow for peaks picked with fewer peakdims than peaklist size
-        //Eventually needs improvement for situations where we want to add higher dim peak
-        //from lower dim. E.g. 2D - 3D NOESY.
-        super(peakList,peak.getPeakDims().length);
-        //this.initPeakDimContribs();
-        peak.copyTo(this);
-        for (int i = 0; i < peak.getPeakDims().length; i++) {
-            this.getPeakDim(i).setResonance(peak.getPeakDim(i).getResonance());
-            //TODO: Suggest to bruce this would be better in setResonance (only called in NMRStarReader I think)
-            peak.getPeakDim(i).getResonance().add(this.getPeakDim(i));
-        }
-        NoeSet noeSet=((ManagedList) peakList).noeSet;
-        if (noeSet!=null) {
-            noeSet.get().addListener((ListChangeListener.Change<? extends Noe> c) -> {
-                while (c.next()) {
-                    for (Noe removedNoe : c.getRemoved()) {
-                        if (noes.contains(removedNoe)) {
-                            remove();
-                        }
-                    }
-                }
-            });
-        }
     }
 
     @Override
@@ -164,8 +158,8 @@ public class ManagedPeak extends Peak {
             } else {
                 //popup if multiple NOE dims
                 for (Noe noe: noes) {
-                    //Will this fail for relabelled peaks? Need to watch and update. Are the spatial sets set up on loading?
-                    //can add an NOE without a peak for the other NOE dims.
+                    //TODO: Will this fail for relabelled peaks? Need to watch and update. Are the spatial sets set up on loading?
+                    // can add an NOE without a peak for the other NOE dims.
                     //fixme: better to have a single window with all possible suggestions
                     boolean result=GUIUtils.affirm("Delete NOE between "+noe.spg1.getAnAtom()+" and "+noe.spg2.getAnAtom()+"?");
                     if (result) {
