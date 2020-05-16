@@ -75,7 +75,7 @@ public class AcquisitionListSceneController implements Initializable {
 
         TableColumn<Acquisition, Dataset> datasetCol = new TableColumn<>("Dataset");
         datasetCol.setCellValueFactory(cellData -> cellData.getValue().datasetProperty());
-        datasetCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"dataset",UmbcProject.gObsDatasetList));
+        datasetCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"dataset",UmbcProject.gDatasetList));
         datasetCol.setPrefWidth(200);
 
         TableColumn<Acquisition, Sample> sampleCol = new TableColumn<>("Sample");

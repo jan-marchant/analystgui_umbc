@@ -1,44 +1,24 @@
 package org.nmrfx.project;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
 import org.nmrfx.processor.datasets.Dataset;
-import org.nmrfx.processor.datasets.peaks.PeakList;
 import org.nmrfx.processor.gui.*;
 import org.nmrfx.structure.chemistry.Molecule;
-import org.nmrfx.structure.chemistry.constraints.NoeSet;
 
-import java.io.IOException;
 import java.util.HashMap;
 
 public class UmbcProject extends GUIStructureProject {
     public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
-    public ObservableList<Dataset> obsDatasetList = FXCollections.observableArrayList();
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
     public ObservableList<Condition> conditionList = FXCollections.observableArrayList();
     public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap= new HashMap<>();
 
-    private MapChangeListener<String, Dataset> datasetChangeListener = (MapChangeListener.Change<? extends String, ? extends Dataset> c) -> {
-        if (c.wasAdded()) {
-            obsDatasetList.add(c.getValueAdded());
-        }
-        if (c.wasRemoved()) {
-            obsDatasetList.remove(c.getValueRemoved());
-        }
-    };
-
-    /*private ListChangeListener<Acquisition> acquisitionChangeListener = (ListChangeListener.Change<? extends Acquisition> c) -> {
-            gAcquisitionTable=UmbcProject.getActive().acquisitionTable;
-    };*/
-
     public static ObservableList<Acquisition> gAcquisitionTable = FXCollections.observableArrayList();
-    public static ObservableList<Dataset> gObsDatasetList = FXCollections.observableArrayList();
+    public static ObservableList<Dataset> gDatasetList = FXCollections.observableArrayList();
     public static ObservableList<Sample> gSampleList = FXCollections.observableArrayList();
     public static ObservableList<Condition> gConditionList = FXCollections.observableArrayList();
     public static ObservableList<Experiment> experimentList = FXCollections.observableArrayList();
@@ -46,10 +26,8 @@ public class UmbcProject extends GUIStructureProject {
 
     public UmbcProject(String name) {
         super(name);
-        obsDatasetList.addAll(datasetList.values());
-        datasetList.addListener(datasetChangeListener);
         Bindings.bindContent(gAcquisitionTable,acquisitionTable);
-        Bindings.bindContent(gObsDatasetList,obsDatasetList);
+        Bindings.bindContent(gDatasetList,(ObservableList) datasets);
         Bindings.bindContent(gSampleList,sampleList);
         Bindings.bindContent(gConditionList,conditionList);
         //acquisitionTable.addListener(acquisitionChangeListener);
@@ -90,14 +68,14 @@ public class UmbcProject extends GUIStructureProject {
     public void setActive() {
         if (Project.activeProject instanceof UmbcProject) {
             Bindings.unbindContent(gAcquisitionTable, UmbcProject.getActive().acquisitionTable);
-            Bindings.unbindContent(gObsDatasetList, UmbcProject.getActive().obsDatasetList);
+            Bindings.unbindContent(gDatasetList, (ObservableList) UmbcProject.getActive().datasets);
             Bindings.unbindContent(gSampleList, UmbcProject.getActive().sampleList);
             Bindings.unbindContent(gConditionList, UmbcProject.getActive().conditionList);
         }
         super.setActive();
         if (acquisitionTable!=null) {
             Bindings.bindContent(gAcquisitionTable,acquisitionTable);
-            Bindings.bindContent(gObsDatasetList,obsDatasetList);
+            Bindings.bindContent(gDatasetList,(ObservableList) datasets);
             Bindings.bindContent(gSampleList,sampleList);
             Bindings.bindContent(gConditionList,conditionList);
         }
@@ -110,12 +88,10 @@ public class UmbcProject extends GUIStructureProject {
         project.molecules.clear();
         newProject.peakLists.putAll(project.peakLists);
         project.peakLists.clear();
-        for (String datasetName : project.datasetList.keySet()) {
-            newProject.datasetList.put(datasetName,project.datasetList.get(datasetName));
+        for (String datasetName : project.datasetMap.keySet()) {
+            newProject.datasetMap.put(datasetName,project.datasetMap.get(datasetName));
         }
-        // already set up listeners
-        // newProject.datasetList=project.datasetList;
-        newProject.peakListTable=project.peakListTable;
+        newProject.peakLists=project.peakLists;
         newProject.resFactory=project.resFactory;
         newProject.peakPaths=project.peakPaths;
         newProject.compoundMap.putAll(project.compoundMap);
