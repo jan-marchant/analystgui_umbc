@@ -10,10 +10,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.gui.*;
-import org.nmrfx.structure.chemistry.Entity;
-import org.nmrfx.structure.chemistry.Molecule;
-import org.nmrfx.structure.chemistry.Polymer;
-import org.nmrfx.structure.chemistry.SmithWaterman;
+import org.nmrfx.structure.chemistry.*;
 import org.nmrfx.utils.GUIUtils;
 
 import java.io.File;
@@ -155,13 +152,29 @@ public class UmbcProject extends GUIStructureProject {
 
             //fixme: this is not an "official" STAR category.
             // using names for fear that IDs aren't persistent
+            // (e.g. if subproject edited).
             chan.write("loop_\n");
             chan.write("_Entity_map.Assembly_subsystem_ID\n");
             chan.write("_Entity_map.Active_system\n");
             chan.write("_Entity_map.Sub_system\n");
             chan.write("\n");
+
+            //All this just to write them in residue order...
+            List<Entity> seen=new ArrayList<>();
+            for (Entity entity : activeMol.getEntities()) {
+                if (entity instanceof Polymer) {
+                    for (Residue residue : ((Polymer) entity).getResidues()) {
+                        if (entityMap.get(project).containsKey(residue)) {
+                            chan.write(String.format("%d %s %s\n",id,residue.toString(),entityMap.get(project).get(residue).toString()));
+                            seen.add(residue);
+                        }
+                    }
+                }
+            }
             for (Map.Entry<Entity,Entity> entry : entityMap.get(project).entrySet()) {
-                chan.write(String.format("%d %s %s",id,entry.getKey().getName(),entry.getValue().getName()));
+                if (!seen.contains(entry.getKey())) {
+                    chan.write(String.format("%d %s %s\n", id, entry.getKey().toString(), entry.getValue().toString()));
+                }
             }
 
             chan.write("stop_\n");
@@ -188,7 +201,7 @@ public class UmbcProject extends GUIStructureProject {
             HashMap<Entity, Entity> map = new HashMap<>();
             entityMap.put(subProj, map);
             for (int i = 0; i < activeEntities.size(); i++) {
-                map.put(activeMol.getEntity(activeEntities.get(i)), subProj.activeMol.getEntity(subEntities.get(i)));
+                map.put(activeMol.getEntitiesAndResidues(activeEntities.get(i)), subProj.activeMol.getEntitiesAndResidues(subEntities.get(i)));
             }
         }
     }
@@ -237,7 +250,6 @@ public class UmbcProject extends GUIStructureProject {
 
     }
 
-
     public List<Object> getSubProjMenus(SubProjectSceneController controller) {
         List<Object> menus=new ArrayList<>();
         for (UmbcProject subProj : subProjectList) {
@@ -259,25 +271,6 @@ public class UmbcProject extends GUIStructureProject {
             }
         }
         return menus;
-    }
-
-    public void alignEntities(UmbcProject subProj,HashMap<Entity,Entity> map) {
-        //really need to set up this mapping graphically - one to one entity mapping and then show aligner
-        for (Entity entity : activeMol.getEntities()) {
-            if (entity instanceof Polymer) {
-                for (Entity entity2 : subProj.activeMol.getEntities()) {
-                    if (entity2 instanceof Polymer && ((Polymer) entity).getPolymerType()==((Polymer) entity2).getPolymerType()) {
-                        SmithWaterman aligner=new SmithWaterman(((Polymer) entity).getOneLetterCode(),((Polymer) entity2).getOneLetterCode());
-                        aligner.buildMatrix();
-                        aligner.dumpH();
-                        aligner.processMatrix();
-                        for (int i=0;i<aligner.getA().size();i++) {
-                            map.put(((Polymer) entity).getResidues().get(aligner.getA().get(i)),((Polymer) entity2).getResidues().get(aligner.getB().get(i)));
-                        }
-                    }
-                }
-            }
-        }
     }
 
     public boolean containsSubProjectPath(Path path) {

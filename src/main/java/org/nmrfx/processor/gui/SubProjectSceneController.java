@@ -23,8 +23,8 @@ import org.nmrfx.utils.GUIUtils;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class SubProjectSceneController {
 
@@ -147,26 +147,40 @@ public class SubProjectSceneController {
                 }
             }
             populateMenu();
+            updateEntities();
         });
 
         entitesLinkedProperty().addListener(e -> setLinkLabel(getEntitesLinked()?"Unlink":"Link"));
     }
 
     private void updateEntities() {
-        if (combo1.getValue() != null && combo2.getValue() != null) {
-            HashMap<Entity, Entity> map = UmbcProject.getActive().entityMap.get(subProject.get());
-            if (map != null && map.get(combo2.getValue()) == combo1.getValue()) {
-                setEntitesLinked(true);
-                alignmentViewer.alignFromMap(combo1.getValue(), combo2.getValue(),map);
-            } else {
-                setEntitesLinked(false);
-                alignmentViewer.alignSW(combo1.getValue(), combo2.getValue());
-            }
+        HashMap<Entity, Entity> map = UmbcProject.getActive().entityMap.get(subProject.get());
+        if (map==null) {
+            setEntitesLinked(false);
+            alignmentViewer.alignSW(combo1.getValue(), combo2.getValue());
+            return;
+        }
+        if (combo2.getValue()==null && getKeysByValue(map,combo1.getValue())!=null) {
+            combo2.setValue(getKeysByValue(map,combo1.getValue()));
+        }
+        if (combo1.getValue()==null && map.containsKey(combo2.getValue())) {
+            combo1.setValue(map.get(combo2.getValue()));
+        }
+        if (map.get(combo2.getValue())==combo1.getValue()) {
+            setEntitesLinked(true);
+            alignmentViewer.alignFromMap(combo1.getValue(), combo2.getValue(),map);
         } else {
             setEntitesLinked(false);
             alignmentViewer.alignSW(combo1.getValue(), combo2.getValue());
         }
+    }
 
+    public static <T, E> T getKeysByValue(Map<T, E> map, E value) {
+        return map.entrySet()
+                .stream()
+                .filter(entry -> Objects.equals(entry.getValue(), value))
+                .map(Map.Entry::getKey)
+                .findFirst().orElse(null);
     }
 
     private void linkEntities(Entity subEntity, Entity mainEntity) {
