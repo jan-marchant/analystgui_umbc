@@ -5,28 +5,29 @@ import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
+import javafx.scene.Node;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.gui.*;
 import org.nmrfx.structure.chemistry.Entity;
 import org.nmrfx.structure.chemistry.Molecule;
 import org.nmrfx.structure.chemistry.Polymer;
 import org.nmrfx.structure.chemistry.SmithWaterman;
+import org.nmrfx.utils.GUIUtils;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class UmbcProject extends GUIStructureProject {
     public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
     public ObservableList<Condition> conditionList = FXCollections.observableArrayList();
-    public ObservableList<Project> subProjectList = FXCollections.observableArrayList();
+    public ObservableList<UmbcProject> subProjectList = FXCollections.observableArrayList();
     public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap= new HashMap<>();
 
     public static ObservableList<Acquisition> gAcquisitionTable = FXCollections.observableArrayList();
@@ -171,7 +172,7 @@ public class UmbcProject extends GUIStructureProject {
     }
 
     public void addSubProject(String projectName, String projectPath,
-                              List<String> activeEntities, List<String> subEntities) throws IOException {
+                              List<String> activeEntities, List<String> subEntities) {
         String absolute;
         try {
             File parentDir = new File(projectDir.toString());
@@ -182,15 +183,82 @@ public class UmbcProject extends GUIStructureProject {
         }
 
         Path projPath=Paths.get(absolute);
-        UmbcProject subProj = new UmbcProject(projectName);
-        subProj.loadProject(projPath);
-        this.setActive();
-        subProjectList.add(subProj);
-        HashMap<Entity,Entity> map = new HashMap<>();
-        entityMap.put(subProj,map);
-        for (int i = 0; i<activeEntities.size(); i++) {
-            map.put(activeMol.getEntity(activeEntities.get(i)),subProj.activeMol.getEntity(subEntities.get(i)));
+        UmbcProject subProj=addSubProject(projectName,projPath);
+        if (subProj!=null) {
+            HashMap<Entity, Entity> map = new HashMap<>();
+            entityMap.put(subProj, map);
+            for (int i = 0; i < activeEntities.size(); i++) {
+                map.put(activeMol.getEntity(activeEntities.get(i)), subProj.activeMol.getEntity(subEntities.get(i)));
+            }
         }
+    }
+
+    public UmbcProject findSubProject(Path path) {
+        if (getDirectory().equals(path)) {
+            return this;
+        }
+        for (UmbcProject subProject : subProjectList) {
+            UmbcProject found=subProject.findSubProject(path);
+            if (found!=null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    public UmbcProject addSubProject(Path projectPath) {
+        if (projectPath==null) {
+            return null;
+        }
+        UmbcProject found=findSubProject(projectPath);
+        if (found!=null) {
+            if (getDirectory().equals(projectPath)) {
+                GUIUtils.warn("Error","Cannot add project as a subProject of itself");
+                return null;
+            } else {
+                return found;
+            }
+        }
+        String projectName = projectPath.getFileName().toString();
+        return addSubProject(projectName,projectPath);
+    }
+
+    public UmbcProject addSubProject(String name, Path path) {
+        UmbcProject subProj;
+        try {
+            subProj = new UmbcProject(name);
+            this.setActive();
+            subProj.loadGUIProject(path);
+            this.subProjectList.add(subProj);
+        } catch (Exception e) {
+            subProj=null;
+        }
+        return subProj;
+
+    }
+
+
+    public List<Object> getSubProjMenus(SubProjectSceneController controller) {
+        List<Object> menus=new ArrayList<>();
+        for (UmbcProject subProj : subProjectList) {
+            if (subProj.subProjectList.size()>0) {
+                Menu menu = new Menu(subProj.name);
+                for (Object subMenu : subProj.getSubProjMenus(controller)) {
+                    if (subMenu instanceof Menu) {
+                        menu.getItems().add((Menu) subMenu);
+                    } else {
+                        menu.getItems().add((MenuItem) subMenu);
+                    }
+                }
+                menus.add(menu);
+                menu.setOnAction(e -> controller.setSubProject(subProj));
+            } else {
+                MenuItem menu = new MenuItem(subProj.name);
+                menus.add(menu);
+                menu.setOnAction(e -> controller.setSubProject(subProj));
+            }
+        }
+        return menus;
     }
 
     public void alignEntities(UmbcProject subProj,HashMap<Entity,Entity> map) {
@@ -210,5 +278,17 @@ public class UmbcProject extends GUIStructureProject {
                 }
             }
         }
+    }
+
+    public boolean containsSubProjectPath(Path path) {
+        if (getDirectory().equals(path)) {
+            return true;
+        }
+        for (UmbcProject subProject : subProjectList) {
+            if (subProject.containsSubProjectPath(path)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

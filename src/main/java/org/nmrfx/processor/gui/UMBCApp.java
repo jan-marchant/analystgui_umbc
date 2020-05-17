@@ -28,6 +28,8 @@ public class UMBCApp extends AnalystApp {
     public static ConditionListSceneController conditionListController;
     public static ExperimentListSceneController experimentListController;
     public static RNALabelsSceneController rnaLabelsController;
+    public static SubProjectSceneController subProjectController;
+
 
     @Override
     protected void loadProject(Path path) {
@@ -80,8 +82,11 @@ public class UMBCApp extends AnalystApp {
         conditionListMenuItem.setOnAction(e -> showConditionList(e));
         MenuItem experimentListMenuItem = new MenuItem("Show Experiment Details");
         experimentListMenuItem.setOnAction(e -> showExperimentList(e));
+        MenuItem subProjectMenuItem = new MenuItem("Show SubProject Details");
+        subProjectMenuItem.setOnAction(e -> showSubProjects(e));
 
-        umbcMenu.getItems().addAll(acquisitionListMenuItem,sampleListMenuItem,conditionListMenuItem,experimentListMenuItem);
+
+        umbcMenu.getItems().addAll(acquisitionListMenuItem,sampleListMenuItem,conditionListMenuItem,experimentListMenuItem,subProjectMenuItem);
         myMenuBar.getMenus().addAll(umbcMenu);
         if (isMac()) {
             MenuToolkit tk = MenuToolkit.toolkit();
@@ -107,6 +112,20 @@ public class UMBCApp extends AnalystApp {
             System.out.println("Couldn't make acquisitionListController ");
         }
     }
+
+    @FXML
+    private void showSubProjects(ActionEvent event) {
+        if (subProjectController == null) {
+            subProjectController = new SubProjectSceneController();
+        }
+        if (subProjectController != null) {
+            subProjectController.show(300,300);
+            subProjectController.getStage().toFront();
+        } else {
+            System.out.println("Couldn't make subProjectController ");
+        }
+    }
+
 
     @FXML
     private void showExperimentList(ActionEvent event) {
