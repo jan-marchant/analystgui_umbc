@@ -1,6 +1,7 @@
 package org.nmrfx.processor.gui;
 
 import javafx.scene.Scene;
+import javafx.scene.control.IndexRange;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -23,7 +24,39 @@ public class AlignmentViewer {
 
     Stage stage;
     double xOffset=50;
-    TextArea textArea = new TextArea();
+    TextArea textArea = new TextArea () {
+        @Override
+        public void appendText(String text) {
+        }
+
+        @Override
+        public void insertText(int index, String text) {
+        }
+
+        @Override
+        public void deleteText(IndexRange range) {
+        }
+
+        @Override
+        public void deleteText(int start, int end) {
+        }
+
+        @Override
+        public void replaceText(IndexRange range, String text) {
+        }
+
+        @Override
+        public void replaceText(int start, int end, String text) {
+        }
+
+        @Override
+        public void cut() {
+        }
+
+        @Override
+        public void paste() {
+        }
+    };
     StringBuilder[] sequences = new StringBuilder[2];
     Polymer polymer1;
     Polymer polymer2;
@@ -146,7 +179,7 @@ public class AlignmentViewer {
 
     private String getText() {
         StringBuilder s=new StringBuilder();
-        int numLines=2+Math.max(sequences[0].length(),sequences[1].length())/lineLength;
+        int numLines=1+Math.max(sequences[0].length(),sequences[1].length())/lineLength;
         int numChars=numLines*lineLength;
         while (sequences[0].length()<numChars) {
             sequences[0].append(' ');
