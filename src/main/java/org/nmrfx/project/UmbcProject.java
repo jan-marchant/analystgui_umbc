@@ -7,14 +7,26 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.gui.*;
+import org.nmrfx.structure.chemistry.Entity;
 import org.nmrfx.structure.chemistry.Molecule;
+import org.nmrfx.structure.chemistry.Polymer;
+import org.nmrfx.structure.chemistry.SmithWaterman;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 public class UmbcProject extends GUIStructureProject {
     public ObservableList<Acquisition> acquisitionTable = FXCollections.observableArrayList();
     public ObservableList<Sample> sampleList = FXCollections.observableArrayList();
     public ObservableList<Condition> conditionList = FXCollections.observableArrayList();
+    public ObservableList<Project> subProjectList = FXCollections.observableArrayList();
     public static HashMap<Molecule,MoleculeCouplingList> moleculeCouplingMap= new HashMap<>();
 
     public static ObservableList<Acquisition> gAcquisitionTable = FXCollections.observableArrayList();
@@ -22,6 +34,8 @@ public class UmbcProject extends GUIStructureProject {
     public static ObservableList<Sample> gSampleList = FXCollections.observableArrayList();
     public static ObservableList<Condition> gConditionList = FXCollections.observableArrayList();
     public static ObservableList<Experiment> experimentList = FXCollections.observableArrayList();
+
+    public HashMap<Project,HashMap<Entity,Entity>> entityMap = new HashMap<>();
 
 
     public UmbcProject(String name) {
@@ -105,22 +119,96 @@ public class UmbcProject extends GUIStructureProject {
         return newProject;
     }
 
-    /*@Override
-    public void saveProject() throws IOException {
-        Project currentProject=getActive();
-        setActive();
-
-        if (projectDir == null) {
-            throw new IllegalArgumentException("Project directory not set");
+    public void writeSubProjectsStar3(FileWriter chan) throws IOException {
+        if (subProjectList.size()<=0) {
+            return;
         }
-        super.saveProject();
-        if(currentProject==this) {
-            saveWindows(projectDir);
+        chan.write("\n\n");
+        chan.write("    ####################################\n");
+        chan.write("    #      Associated assemblies       #\n");
+        chan.write("    ####################################\n");
+        chan.write("\n\n");
+
+        int id=0;
+
+        for (Project project : subProjectList) {
+            project.saveProject();
+            Path relativePath;
+            try {
+                relativePath = projectDir.relativize(project.projectDir);
+            } catch (Exception e) {
+                relativePath = project.projectDir;
+            }
+            String label = project.name;
+            chan.write("save_" + label + "\n");
+            chan.write("_Assembly_subsystem.Sf_category                 ");
+            chan.write("assembly_subsystems\n");
+            chan.write("_Assembly_subsystem.Sf_framecode                ");
+            chan.write("save_" + label + "\n");
+            chan.write("_Assembly_subsystem.ID                          ");
+            chan.write(id+"\n");
+            chan.write("_Assembly_subsystem.Name                        ");
+            chan.write("'"+label+"'\n");
+            chan.write("_Assembly_subsystem.Details                     ");
+            chan.write("'"+relativePath.toString()+"'\n");
+
+            //fixme: this is not an "official" STAR category.
+            // using names for fear that IDs aren't persistent
+            chan.write("loop_\n");
+            chan.write("_Entity_map.Assembly_subsystem_ID\n");
+            chan.write("_Entity_map.Active_system\n");
+            chan.write("_Entity_map.Sub_system\n");
+            chan.write("\n");
+            for (Map.Entry<Entity,Entity> entry : entityMap.get(project).entrySet()) {
+                chan.write(String.format("%d %s %s",id,entry.getKey().getName(),entry.getValue().getName()));
+            }
+
+            chan.write("stop_\n");
+            chan.write("save_\n\n");
+            id++;
         }
-        gitCommitOnThread();
-        PreferencesController.saveRecentProjects(projectDir.toString());
-        currentProject.setActive();
-    }*/
+        chan.write("\n\n");
+    }
 
+    public void addSubProject(String projectName, String projectPath,
+                              List<String> activeEntities, List<String> subEntities) throws IOException {
+        String absolute;
+        try {
+            File parentDir = new File(projectDir.toString());
+            File childDir = new File(parentDir, projectPath);
+            absolute = childDir.getCanonicalPath();
+        } catch (Exception e) {
+            absolute = projectPath;
+        }
 
+        Path projPath=Paths.get(absolute);
+        UmbcProject subProj = new UmbcProject(projectName);
+        subProj.loadProject(projPath);
+        this.setActive();
+        subProjectList.add(subProj);
+        HashMap<Entity,Entity> map = new HashMap<>();
+        entityMap.put(subProj,map);
+        for (int i = 0; i<activeEntities.size(); i++) {
+            map.put(activeMol.getEntity(activeEntities.get(i)),subProj.activeMol.getEntity(subEntities.get(i)));
+        }
+    }
+
+    public void alignEntities(UmbcProject subProj,HashMap<Entity,Entity> map) {
+        //really need to set up this mapping graphically - one to one entity mapping and then show aligner
+        for (Entity entity : activeMol.getEntities()) {
+            if (entity instanceof Polymer) {
+                for (Entity entity2 : subProj.activeMol.getEntities()) {
+                    if (entity2 instanceof Polymer && ((Polymer) entity).getPolymerType()==((Polymer) entity2).getPolymerType()) {
+                        SmithWaterman aligner=new SmithWaterman(((Polymer) entity).getOneLetterCode(),((Polymer) entity2).getOneLetterCode());
+                        aligner.buildMatrix();
+                        aligner.dumpH();
+                        aligner.processMatrix();
+                        for (int i=0;i<aligner.getA().size();i++) {
+                            map.put(((Polymer) entity).getResidues().get(aligner.getA().get(i)),((Polymer) entity2).getResidues().get(aligner.getB().get(i)));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

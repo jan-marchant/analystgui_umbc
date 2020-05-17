@@ -25,7 +25,6 @@ import org.nmrfx.processor.gui.Condition;
 import org.nmrfx.processor.gui.Sample;
 import org.nmrfx.processor.star.ParseException;
 import org.nmrfx.processor.star.STAR3;
-import org.nmrfx.project.Project;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.*;
 import org.nmrfx.structure.chemistry.constraints.AngleConstraint;
@@ -792,6 +791,7 @@ public class NMRStarWriter {
         }
         Condition.writeAllStar3(chan);
         // fixme Dataset.writeDatasetsToSTAR3(channelName);
+        UmbcProject.getActive().writeSubProjectsStar3(chan);
         Iterator iter = PeakList.iterator();
         PeakWriter peakWriter = new PeakWriter();
         while (iter.hasNext()) {

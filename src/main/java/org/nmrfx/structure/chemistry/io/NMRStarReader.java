@@ -60,12 +60,12 @@ public class NMRStarReader {
 //        PeakDim.setResonanceFactory(new AtomResonanceFactory());
     }
 
-    public static STAR3 read(String starFileName) throws ParseException {
+    public static STAR3 read(String starFileName) throws ParseException, IOException {
         File file = new File(starFileName);
         return read(file);
     }
 
-    public static STAR3 read(File starFile) throws ParseException {
+    public static STAR3 read(File starFile) throws ParseException, IOException {
         FileReader fileReader;
         try {
             fileReader = new FileReader(starFile);
@@ -664,6 +664,17 @@ public class NMRStarReader {
         return molecule;
     }
 
+    public void buildSubProjects() throws ParseException, IOException {
+        for (Saveframe saveframe : star3.getSaveFrames().values()) {
+            if (saveframe.getCategoryName().equals("assembly_subsystems")) {
+                if (DEBUG) {
+                    System.err.println("process subsystem " + saveframe.getName());
+                }
+                processSTAR3SubProject(saveframe);
+            }
+        }
+    }
+
     public void buildSamples() throws ParseException {
         for (Saveframe saveframe : star3.getSaveFrames().values()) {
             if (saveframe.getCategoryName().equals("sample")) {
@@ -778,6 +789,19 @@ public class NMRStarReader {
             peakDim.setResonance(resonance);
             resonance.add(peakDim);
         }
+    }
+
+    public void processSTAR3SubProject(Saveframe saveframe) throws ParseException, IOException {
+        String projectName = saveframe.getValue("_Assembly_subsystem", "Name").replace("^'", "").replace("'$","");
+        String projectPath = saveframe.getValue("_Assembly_subsystem", "Details").replace("^'", "").replace("'$","");
+        Loop loop = saveframe.getLoop("_Entity_map");
+        List<String> activeEntities=new ArrayList<>();
+        List<String> subEntities=new ArrayList<>();
+        if (loop != null) {
+            activeEntities = loop.getColumnAsList("Active_system");
+            subEntities = loop.getColumnAsList("Sub_system");
+        }
+        UmbcProject.getActive().addSubProject(projectName,projectPath,activeEntities,subEntities);
     }
 
     public void processSTAR3Sample(Saveframe saveframe) throws ParseException {
@@ -1955,12 +1979,12 @@ public class NMRStarReader {
         }
     }
 
-    public void process() throws ParseException, IllegalArgumentException {
+    public void process() throws ParseException, IllegalArgumentException, IOException {
         String[] argv = {};
         process(argv);
     }
 
-    public void process(String[] argv) throws ParseException, IllegalArgumentException {
+    public void process(String[] argv) throws ParseException, IllegalArgumentException, IOException {
         if ((argv.length != 0) && (argv.length != 3)) {
             throw new IllegalArgumentException("?shifts fromSet toSet?");
         }
@@ -1976,6 +2000,10 @@ public class NMRStarReader {
                 System.err.println("process molecule");
             }
             buildMolecule();
+            if (DEBUG) {
+                System.err.println("process subprojects");
+            }
+            buildSubProjects();
             if (DEBUG) {
                 System.err.println("process samples");
             }
