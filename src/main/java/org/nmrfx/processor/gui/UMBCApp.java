@@ -29,7 +29,7 @@ public class UMBCApp extends AnalystApp {
     public static ExperimentListSceneController experimentListController;
     public static RNALabelsSceneController rnaLabelsController;
     public static SubProjectSceneController subProjectController;
-
+    public static NoeSetup noeSetController;
 
     @Override
     protected void loadProject(Path path) {
@@ -84,9 +84,11 @@ public class UMBCApp extends AnalystApp {
         experimentListMenuItem.setOnAction(e -> showExperimentList(e));
         MenuItem subProjectMenuItem = new MenuItem("Show SubProject Details");
         subProjectMenuItem.setOnAction(e -> showSubProjects(e));
+        MenuItem noeSetMenuItem = new MenuItem("Show NoeSets");
+        noeSetMenuItem.setOnAction(e -> showNoeSetup(e));
 
 
-        umbcMenu.getItems().addAll(acquisitionListMenuItem,sampleListMenuItem,conditionListMenuItem,experimentListMenuItem,subProjectMenuItem);
+        umbcMenu.getItems().addAll(acquisitionListMenuItem,sampleListMenuItem,conditionListMenuItem,experimentListMenuItem,noeSetMenuItem,subProjectMenuItem);
         myMenuBar.getMenus().addAll(umbcMenu);
         if (isMac()) {
             MenuToolkit tk = MenuToolkit.toolkit();
@@ -125,6 +127,20 @@ public class UMBCApp extends AnalystApp {
             System.out.println("Couldn't make subProjectController ");
         }
     }
+
+    @FXML
+    private void showNoeSetup(ActionEvent event) {
+        if (noeSetController == null) {
+            noeSetController = new NoeSetup();
+        }
+        if (noeSetController != null) {
+            noeSetController.show(300,300);
+            noeSetController.getStage().toFront();
+        } else {
+            System.out.println("Couldn't make noeSetup ");
+        }
+    }
+
 
 
     @FXML

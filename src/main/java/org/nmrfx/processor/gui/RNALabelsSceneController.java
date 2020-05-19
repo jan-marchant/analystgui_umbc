@@ -90,15 +90,17 @@ public class RNALabelsSceneController implements Initializable {
     @FXML
     TextField lastResidueField;
     @FXML
+    TextField labelingPercentageField;
+    @FXML
     private ComboBox<Sample> sampleField;
 
     ObservableList<String> selGroupList;
 
     Stage stage;
     String[][] baseAtoms = {
-        {"H2", "C2", "H8", "C8"}, // Adenine
+        {"H2", "C2", "H8", "C8", "N1", "N3", "N7", "N9"}, // Adenine
         {"H61", "H62", "N6"},
-        {"H8", "C8"},// Guanine
+        {"H8", "C8", "N7", "N8"},// Guanine
         {"H21", "H22", "N2"},
         {"H5", "C5", "H6", "C6"},// Uridine
         {"H3", "N3"},
@@ -142,9 +144,10 @@ public class RNALabelsSceneController implements Initializable {
                 int iAtom = 0;
                 checkBoxes[iBase][iType] = new CheckBox[atomNames.length];
                 for (String aName : atomNames) {
+                    if (iAtom%4==0 && iAtom!=0) {row++;}
                     CheckBox checkBox = new CheckBox(aName);
                     checkBoxes[iBase][iType][iAtom] = checkBox;
-                    gridPanes[iBase].add(checkBox, iAtom, row);
+                    gridPanes[iBase].add(checkBox, iAtom%4, row);
                     if (aName.charAt(0) == 'C') {
                         checkBox.disableProperty().bind(carbonCheckBox.selectedProperty().not());
                     }
@@ -540,6 +543,12 @@ public class RNALabelsSceneController implements Initializable {
                 sAtoms.append(range).append('.');
                 prefix[iBase] = sAtoms.toString();
                 suffix[iBase] = sBuilder.substring(1);
+                try {
+                    Integer labelingPercentage = Integer.parseInt(labelingPercentageField.getText());
+                    if (labelingPercentage<100 && labelingPercentage>0) {
+                        suffix[iBase] += ":"+labelingPercentage.toString();
+                    }
+                } catch (Exception e) {}
             } else {
                 prefix[iBase] = "";
                 suffix[iBase] = "";

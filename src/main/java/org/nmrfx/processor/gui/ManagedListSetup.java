@@ -217,6 +217,9 @@ public class ManagedListSetup {
                         //labString += " using NOE set: ";
                         //noeType.getItems().setAll(Connectivity.NOETYPE.values());
                         noeSet.setMaxWidth(Double.MAX_VALUE);
+                        if (acquisition.getProject().NOE_SETS.values().size()<1) {
+                            NoeSet.addSet("default");
+                        }
                         noeSet.getItems().setAll(acquisition.getProject().NOE_SETS.values());
                         noeSet.setPromptText("NOE Set:");
                         noeSet.setConverter(new StringConverter<NoeSet>() {
@@ -224,7 +227,7 @@ public class ManagedListSetup {
                             @Override
                             public String toString(NoeSet noeSet) {
                                 Optional<Map.Entry<String, NoeSet>> optionalEntry = acquisition.getProject().NOE_SETS.entrySet().stream().filter(ap -> ap.getValue().equals(noeSet)).findFirst();
-                                return (optionalEntry.isPresent() ? optionalEntry.get().getKey() : null);
+                                return (optionalEntry.map(Map.Entry::getKey).orElse(null));
                             }
 
                             @Override

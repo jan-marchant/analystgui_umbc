@@ -139,9 +139,13 @@ public class SubProjectSceneController {
                 menuButton.setText(UmbcProject.getActive().subProjectList.size() + " project"+(UmbcProject.getActive().subProjectList.size()==1?"":"s"));
             } else {
                 menuButton.setText(subProject.get().name());
-                list1.addAll(subProject.get().activeMol.getEntities());
-                if (subProject.get().activeMol.getEntities().size()==1) {
-                    combo1.setValue(subProject.get().activeMol.getEntities().get(0));
+                if (subProject.get().activeMol!=null) {
+                    list1.addAll(subProject.get().activeMol.getEntities());
+                    if (subProject.get().activeMol.getEntities().size() == 1) {
+                        combo1.setValue(subProject.get().activeMol.getEntities().get(0));
+                    } else {
+                        combo1.setValue(null);
+                    }
                 } else {
                     combo1.setValue(null);
                 }

@@ -129,7 +129,7 @@ public class UmbcProject extends GUIStructureProject {
 
         int id=0;
 
-        for (Project project : subProjectList) {
+        for (UmbcProject project : subProjectList) {
             project.saveProject();
             Path relativePath;
             try {
@@ -164,9 +164,11 @@ public class UmbcProject extends GUIStructureProject {
             for (Entity entity : activeMol.getEntities()) {
                 if (entity instanceof Polymer) {
                     for (Residue residue : ((Polymer) entity).getResidues()) {
-                        if (entityMap.get(project).containsKey(residue)) {
-                            chan.write(String.format("%d %s %s\n",id,residue.toString(),entityMap.get(project).get(residue).toString()));
-                            seen.add(residue);
+                        if (entityMap.containsKey(project)) {
+                            if (entityMap.get(project).containsKey(residue)) {
+                                chan.write(String.format("%d %s %s\n", id, residue.toString(), entityMap.get(project).get(residue).toString()));
+                                seen.add(residue);
+                            }
                         }
                     }
                 }
@@ -283,5 +285,28 @@ public class UmbcProject extends GUIStructureProject {
             }
         }
         return false;
+    }
+
+    public List<Acquisition> getAcquisitions(Atom atom) {
+        List<Acquisition> acquisitions = new ArrayList<>();
+        if (atom==null) {
+            return acquisitions;
+        }
+        for (Acquisition acquisition : acquisitionTable) {
+            if (acquisition.getAcqTree().getNodes(atom).size()>0) {
+                acquisitions.add(acquisition);
+            }
+        }
+        for (UmbcProject subProj : subProjectList) {
+            if (entityMap.containsKey(atom.getTopEntity())) {
+                Entity res = entityMap.get(atom.getTopEntity()).get(atom.getEntity());
+                for (Atom atom1 : res.getAtoms()) {
+                    if (atom1.getName().equals(atom.getName())) {
+                        acquisitions.addAll(subProj.getAcquisitions(atom1));
+                    }
+                }
+            }
+        }
+        return acquisitions;
     }
 }

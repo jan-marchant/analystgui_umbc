@@ -77,8 +77,8 @@ public class AlignmentViewer extends TextArea {
 
         });
 
-        setPrefWidth(600);
-        setMinWidth(600);
+        setPrefWidth(650);
+        setMinWidth(650);
         setPrefHeight(300);
         setFont(Font.font("Courier New", FontWeight.NORMAL, 16));
     }

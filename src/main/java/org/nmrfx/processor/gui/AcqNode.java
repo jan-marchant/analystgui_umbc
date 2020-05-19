@@ -137,4 +137,11 @@ public class AcqNode {
         return acqTree.getNodes(this,forward,noeSet);
     }
 
+    public void setExpDim(ExpDim expDim) {
+        this.expDim = expDim;
+    }
+
+    public Set<AcqTree.Edge> getEdgeSet() {
+        return edges;
+    }
 }

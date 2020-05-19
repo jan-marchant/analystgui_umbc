@@ -5,6 +5,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import org.nmrfx.processor.operations.Exp;
 import org.nmrfx.project.UmbcProject;
 
 import java.io.FileWriter;
@@ -61,6 +62,8 @@ public class Experiment {
     private StringProperty name=new SimpleStringProperty();
     private int size;
     private IntegerProperty numObsDims=new SimpleIntegerProperty();
+    private StringProperty description=new SimpleStringProperty();
+
 
     private ExpDim first;
     private ExpDim last;
@@ -120,6 +123,16 @@ public class Experiment {
 
     public String getName() {
         return name.get();
+    }
+
+    public String describe() {
+        String toReturn="";
+        for (ExpDim expDim : expDims) {
+            toReturn+=expDim.getNextCon(false)==null?"":expDim.getNextCon(false).toString()+"→";
+            toReturn+=expDim.toString() + "("+expDim.getNucleus().getNumberName()+"): "+expDim.getPattern();
+            toReturn+=expDim.getNextCon(true)==null?"":"→";
+        }
+        return toReturn;
     }
     public int getNumObsDims() {
         return numObsDims.get();
@@ -194,6 +207,7 @@ public class Experiment {
             size=new_size;
             numObsDims.set(newNumObsDims);
         }
+        setDescription(describe());
         return added;
     }
 
@@ -213,6 +227,7 @@ public class Experiment {
             size+=1;
             if (expDim.isObserved()) {numObsDims.set(numObsDims.get()+1);}
         }
+        setDescription(describe());
         return added;
     }
 
@@ -246,4 +261,11 @@ public class Experiment {
         }
     }
 
+    public StringProperty descriptionProperty() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description.set(description);
+    }
 }

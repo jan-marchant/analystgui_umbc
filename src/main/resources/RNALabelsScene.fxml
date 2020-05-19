@@ -95,7 +95,7 @@
                 <HBox>
                     <children>
                         <Label text="Labeling percentage" />
-                        <TextField fx:id="percentageField" maxWidth="60" />
+                        <TextField fx:id="labelingPercentageField" maxWidth="60" />
                         <Pane minWidth="50" />
                         <Label text="Residues Start:" />
                         <TextField fx:id="firstResidueField" maxWidth="60" />

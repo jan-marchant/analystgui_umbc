@@ -119,6 +119,9 @@ public class AcqTree {
         ExpDim expDim=node.getExpDim();
         // leave in nodes list or need to reIndex
         // nodes.remove(node);
+        node.setAtom(null);
+        node.setExpDim(null);
+        node.getEdgeSet().clear();
         if (atom!=null) {
             atomNodeMap.get(atom).remove(node);
         }

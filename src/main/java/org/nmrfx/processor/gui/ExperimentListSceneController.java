@@ -77,9 +77,14 @@ public class ExperimentListSceneController implements Initializable {
         //dimCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"Experiment",UmbcProject.gExperimentList));
         dimCol.setPrefWidth(200);
 
+        TableColumn<Experiment, String> descCol = new TableColumn<>("Description");
+        descCol.setCellValueFactory(cellData -> cellData.getValue().descriptionProperty());
+        //dimCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"Experiment",UmbcProject.gExperimentList));
+        descCol.setPrefWidth(400);
+
         //some kind of accordion to show the details of each dimension
 
-        tableView.getColumns().setAll(nameCol,dimCol);
+        tableView.getColumns().setAll(nameCol,dimCol,descCol);
         //tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
         tableView.setOnKeyPressed( new EventHandler<KeyEvent>()

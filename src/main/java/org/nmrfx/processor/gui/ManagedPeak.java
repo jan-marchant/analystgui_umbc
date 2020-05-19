@@ -57,17 +57,23 @@ public class ManagedPeak extends Peak {
             this.getPeakDim(i).setLabel(atoms.get(i).getShortName());
             atoms.get(i).setResonance(resonance);
 
+
             Dataset dataset=((ManagedList) peakList).getAcquisition().getDataset();
-            float width=(float) dataset.ptWidthToPPM(i,2);
+            /*float width=(float) dataset.ptWidthToPPM(i,2);
             if (width<0.01f) {width=0.01f;}
+            */
+            float width;
             switch (atoms.get(i).getElementName()) {
                 case "C":
+                    width= 0.15f;
+                    scale=3f;
+                    break;
                 case "N":
-                    width *= 10f;
+                    width= 0.3f;
                     scale=3f;
                     break;
                 default:
-                    width *= 1f;
+                    width= 0.01f;
             }
 
 
@@ -76,7 +82,7 @@ public class ManagedPeak extends Peak {
                 if (thisPeakDim.getSpectralDim()==peakDim0.getSpectralDim()) {
                     Dataset dataset0=Dataset.getDataset(peakDim0.getPeakList().getDatasetName());
                     if (dataset0!=null) {
-                        width = (float) (peakDim0.getLineWidthValue()*dataset.ptWidthToPPM(i,2)/dataset0.ptWidthToPPM(peakDim0.getSpectralDim(),2));
+                        //width = (float) (peakDim0.getLineWidthValue()*dataset.ptWidthToPPM(i,2)/dataset0.ptWidthToPPM(peakDim0.getSpectralDim(),2));
                     }
                 }
                 Float pickedShift = peakDim0.getChemShift();

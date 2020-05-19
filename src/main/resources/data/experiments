@@ -3,3 +3,5 @@ CNNOE = |C[1](*.*)|J:1|H[1](*.*)|NOE|H[1](*.*)|J:1|N[1](*.*)
 1H-13C HMQC = |C[1](*.*)|J:1|H[1](*.*)|
 2D TOCSY = |H[1](*.*)|TOCSY:1-1|H[1](*.*)
 13C Separated NOESY = |C[1](*.*)|J:1|H[1](*.*)|NOE|H[1](*.*)
+2JHN Separated NOESY = |N[1](*.*)|J:2|H[1](*.hn)|NOE|H[1](*.*)
+2JHN HMQC = |N[1](*.*)|J:2|H[1](*.hn)
