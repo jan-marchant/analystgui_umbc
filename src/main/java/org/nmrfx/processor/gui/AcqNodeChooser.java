@@ -1,13 +1,23 @@
 package org.nmrfx.processor.gui;
 
+import com.sun.javafx.tk.Toolkit;
+import impl.org.controlsfx.autocompletion.AutoCompletionTextFieldBinding;
+import impl.org.controlsfx.autocompletion.SuggestionProvider;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.*;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -17,11 +27,14 @@ import org.controlsfx.control.textfield.TextFields;
 import org.nmrfx.processor.datasets.peaks.AtomResonance;
 import org.nmrfx.processor.datasets.peaks.Peak;
 import org.nmrfx.processor.datasets.peaks.PeakDim;
+import org.nmrfx.project.Project;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 public class AcqNodeChooser {
     /** popup on adding peak to managed list.
@@ -30,7 +43,7 @@ public class AcqNodeChooser {
      * where pickedNodes describes the nodes selected.
      */
     HashMap<ExpDim, ObservableList<AcqNode>> possibleNodes=new HashMap<>();
-    HashMap<ExpDim,ComboBox> combos=new HashMap<>();
+    HashMap<ExpDim,ComboBox<AcqNode>> combos=new HashMap<>();
     Acquisition acquisition;
     Stage stage;
     GridPane grid;
@@ -39,9 +52,9 @@ public class AcqNodeChooser {
     HashMap<AcqNode,String> nodeLabs=new HashMap<>();
     ManagedList list;
     Peak peak;
-    double xOffset = 50;
     ObservableMap<ExpDim,AcqNode> pickedSet=FXCollections.observableMap(new HashMap<>());
     int numExpDims;
+    float matchTolerance=0.1f;
 
     public AcqNodeChooser(ManagedList list, Peak peak) {
         this.acquisition = list.getAcquisition();
@@ -50,8 +63,25 @@ public class AcqNodeChooser {
         initPossibleNodes();
     }
 
+
+    class NodeComparator implements Comparator<AcqNode> {
+        Float shift;
+
+        public NodeComparator(Float shift) {
+            this.shift=shift;
+        }
+
+        @Override
+        public int compare(AcqNode a, AcqNode b) {
+            if (shift==null) {return 0;}
+            double aDelta=a.getDeltaPPM(shift);
+            double bDelta=b.getDeltaPPM(shift);
+            return aDelta < bDelta ? -1 : aDelta == bDelta ? 0 : 1;
+        }
+    }
+
     public void create() {
-        stage = new Stage(StageStyle.DECORATED);
+        stage = new Stage(StageStyle.UTILITY);
         grid=new GridPane();
         Scene scene = new Scene(grid);
         stage.setScene(scene);
@@ -61,30 +91,18 @@ public class AcqNodeChooser {
         //fixme: if multiple NOE dims need to add way to apportion intensity - need to think a bit harder about intensity anyway
         for (ExpDim expDim : acquisition.getExperiment().expDims) {
             if (expDim.isObserved() || expDim.isNoeDim()) {
-                double shift;
+                Float shift;
                 try {
                     shift = peak.getPeakDim(list.getDimMap().get(expDim)).getChemShiftValue();
                 } catch (Exception e) {
-                    shift=-100.0;
+                    shift=null;
                 }
-                //Update method to (also) use atom chemical shift assignment and rppm
-                List<AtomBrowser.AtomDelta> atoms1 = AtomBrowser.getMatchingAtomNames(acquisition.getDataset(), shift, tol);
-                //put these nodes to front of list
-                for (int j = atoms1.size(); j-- > 0; ) {
-                    AtomBrowser.AtomDelta atom = atoms1.get(j);
-                    Atom atom1=acquisition.getSample().getMolecule().findAtom(atom.getName());
-                    if (atom1!=null) {
-                        AcqNode node=acquisition.getAcqTree().getNode(expDim,atom1);
-                        if (node!=null) {
-                            possibleNodes.get(expDim).remove(node);
-                            possibleNodes.get(expDim).add(0,node);
-                            nodeLabs.put(node,String.format("%2d%%",Math.round(99.0 * atom.fDelta)));
-                        }
-                    }
-                }
+                NodeComparator comparator = new NodeComparator(shift);
+
+                Collections.sort(possibleNodes.get(expDim),comparator);
                 Label label=new Label(expDim.toString());
                 String shiftString;
-                if (shift>-99) {
+                if (shift!=null) {
                     shiftString=String.format("\t%.2f",shift)+" ppm";
                 } else {
                     shiftString="";
@@ -95,17 +113,16 @@ public class AcqNodeChooser {
                 comboBox.setItems(possibleNodes.get(expDim));
                 comboBox.setEditable(false);
 
+                Float finalShift = shift;
                 comboBox.setConverter(new StringConverter<AcqNode>() {
 
                     @Override
                     public String toString(AcqNode node) {
-                        String returnString=node.toString();
-                        if (nodeLabs.containsKey(node)) {
-                            returnString+=" "+nodeLabs.get(node);
+                        if (finalShift==null) {
+                            return String.format("%-10.10s",node.toString());
                         } else {
-                            returnString+=" -";
+                            return String.format("%-10.10s %5.3f", node.toString(), node.getDeltaPPM(finalShift));
                         }
-                        return returnString;
                     }
 
                     @Override
@@ -115,15 +132,34 @@ public class AcqNodeChooser {
                     }
                 });
 
+                //comboBox.getEditor().setFont(Font.font("Courier New", FontWeight.NORMAL, 12));
+                comboBox.setStyle("-fx-font: 16px \"Courier New\";");
+
                 TextField textField = new TextField();
                 textField.setPromptText("Search");
-                AutoCompletionBinding<AcqNode> acb = TextFields.bindAutoCompletion(textField, comboBox.getItems());
+                SuggestionProvider<AcqNode> provider = new SuggestionProvider<AcqNode>() {
+                    @Override
+                    protected Comparator<AcqNode> getComparator() {
+                        return comparator;
+                    }
+
+                    @Override
+                    protected boolean isMatch(AcqNode suggestion, AutoCompletionBinding.ISuggestionRequest request) {
+                        String userTextLower = request.getUserText().toLowerCase();
+                        String suggestionStr = suggestion.toString().toLowerCase();
+                        return suggestionStr.contains(userTextLower)
+                                && !suggestionStr.equals(userTextLower);
+                    }
+                };
+                provider.addPossibleSuggestions(comboBox.getItems());
+                AutoCompletionBinding<AcqNode> acb = new AutoCompletionTextFieldBinding<>(textField, provider);
                 acb.setOnAutoCompleted(event -> {
                     AcqNode node = event.getCompletion();
                     expDims.clear();
                     textField.clear();
                     comboBox.setValue(node);
                 });
+                acb.setVisibleRowCount(10);
 
                 textField.setOnKeyPressed(keyEvent -> {
                     if (keyEvent.getCode().equals(KeyCode.ENTER) | keyEvent.getCode().equals(KeyCode.ESCAPE)) {
@@ -172,6 +208,7 @@ public class AcqNodeChooser {
             pickedSet.addListener((MapChangeListener<? super ExpDim,? super AcqNode>) e -> {
                 if (pickedSet.size() == numExpDims) {
                     ok.setDisable(false);
+                    ok.requestFocus();
                 } else {
                     ok.setDisable(true);
                 }
@@ -182,19 +219,48 @@ public class AcqNodeChooser {
         }
     }
 
-    public void showAndWait(double x, double y) {
-        double screenWidth = Screen.getPrimary().getBounds().getWidth();
-        if (x > (screenWidth / 2)) {
-            x = x - stage.getWidth() - xOffset;
-        } else {
-            x = x + 100;
-        }
+    public void showAndWaitAtMouse() {
+        Point p = MouseInfo.getPointerInfo().getLocation();
+        List<Screen> screens = Screen.getScreens();
 
-        y = y - stage.getHeight() / 2.0;
-        stage.setX(x);
-        stage.setY(y);
         stage.setAlwaysOnTop(true);
         stage.setResizable(false);
+
+        Platform.runLater(() -> {
+            Double x=null;
+            Double y=null;
+
+            if (p != null && screens != null) {
+                Rectangle2D screenBounds;
+                for (Screen screen : screens) {
+                    screenBounds=screen.getVisualBounds();
+                    if (screenBounds.contains(p.getX(),p.getY())) {
+                        x=p.getX()-stage.getWidth()/2;
+                        y=p.getY()-stage.getHeight()/2;
+                        if (x+stage.getWidth()>screenBounds.getMaxX()) {
+                            x=screenBounds.getMaxX()-stage.getWidth()-50;
+                        }
+                        if (x<screenBounds.getMinX()) {
+                            x=screenBounds.getMinX()+50;
+                        }
+                        if (y+stage.getHeight()>screenBounds.getMaxY()) {
+                            y=screenBounds.getMaxY()-stage.getHeight()-50;
+                        }
+                        if (y<screenBounds.getMinY()) {
+                            y=screenBounds.getMinY()+50;
+                        }
+                    }
+                }
+            }
+            stage.centerOnScreen();
+            if (x!=null) {
+                stage.setX(x);
+            }
+            if (y!=null) {
+                stage.setY(y);
+            }
+        });
+
         stage.showAndWait();
     }
 
@@ -225,62 +291,109 @@ public class AcqNodeChooser {
     }
 
     private void processPickedNodes() {
-        //need to process existing peaks on list here - and offer multiple ppm sets
         for (Map.Entry<ExpDim,AcqNode> picked : pickedSet.entrySet()) {
             ExpDim expDim=picked.getKey();
-            Connectivity nextCon=expDim.getNextCon();
-            if (nextCon!=null && nextCon.type==Connectivity.TYPE.NOE) {
-                AcqNode node1=picked.getValue();
-                AcqNode node2=pickedSet.get(expDim.getNextExpDim());
-                Atom atom1=node1.getAtom();
-                Atom atom2=node2.getAtom();
-                double noeFraction = acquisition.getSample().getAtomFraction(atom1) * acquisition.getSample().getAtomFraction(atom2);
-                boolean add=true;
-                if (noeFraction <= 0) {
-                    add = false;
-                }
-                if (!expDim.resPatMatches(atom1,atom2)) {
-                    add=false;
-                }
-                if (add) {
-                    //todo ppm set support
-                    if (!noeExists(list.noeSet, atom1,atom2)) {
-                        //fixme: is this an OK use of newScale?
-                        //fixme: apportion intensity where multiple NOE dims
-                        if (node1 != null && node2 != null) {
-                            PeakDim peakDim1=null;
-                            PeakDim peakDim2=null;
-                            if (expDim.isObserved()) {
-                                peakDim1=peak.getPeakDim(list.getDimMap().get(expDim));
-                                if (atom1.getResonance()!=null) {
-                                    peakDim1.setResonance(atom1.getResonance());
-                                } else {
-                                    ((AtomResonance) peakDim1.getResonance()).setAtom(atom1);
-                                    atom1.setResonance((AtomResonance) peakDim1.getResonance());
-                                }
-                            }
-                            if (expDim.getNextExpDim().isObserved()) {
-                                peakDim2=peak.getPeakDim(list.getDimMap().get(expDim.getNextExpDim()));
-                                if (atom2.getResonance()!=null) {
-                                    peakDim2.setResonance(atom2.getResonance());
-                                } else {
-                                    ((AtomResonance) peakDim2.getResonance()).setAtom(atom2);
-                                    atom2.setResonance((AtomResonance) peakDim2.getResonance());
-                                }
+            AcqNode node=picked.getValue();
+            Atom atom=node.getAtom();
 
-                            }
-                            Noe noe = new Noe(peak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction,(AtomResonance) peakDim1.getResonance(),(AtomResonance) peakDim2.getResonance());
-                            noe.setIntensity(peak.getIntensity());
+            if (expDim.isObserved()) {
+                PeakDim peakDim = peak.getPeakDim(list.getDimMap().get(expDim));
+                float pickedShift=peakDim.getChemShift();
 
-                            if (list.getAddedNoe()==null) {
-                                list.setAddedNoe(noe);
-                            }
-                            list.noeSet.add(noe);
+                if (atom.getResonance()==null) {
+                    ((AtomResonance) peakDim.getResonance()).setAtom(atom);
+                    atom.setResonance((AtomResonance) peakDim.getResonance());
+                } else {
+                    atom.getResonance().add(peakDim);
+                    Set<PeakDim> updateMe = new HashSet<>();
+                    updateMe.add(peakDim);
+                    boolean freezeMe = false;
+
+                    for (PeakDim testPeakDim : atom.getResonance().getPeakDims()) {
+                        if (testPeakDim == peakDim) {
+                            continue;
                         }
+                        if (testPeakDim.getSampleConditionLabel().equals(peakDim.getSampleConditionLabel())) {
+                            if (testPeakDim.isFrozen()) {
+                                if (Math.abs(testPeakDim.getChemShift() - pickedShift) > matchTolerance) {
+                                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                                    alert.setTitle("Clash detected");
+                                    alert.setHeaderText("Your assignment clashes with existing frozen peaks");
+                                    alert.setContentText("e.g. "+testPeakDim.getPeak()+
+                                            " is frozen at "+testPeakDim.getChemShiftValue()+" ppm. Do you wish to:");
+
+                                    ButtonType shiftFrozen = new ButtonType("Shift Existing");
+                                    ButtonType shiftNew = new ButtonType("Shift New");
+                                    ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+                                    alert.getButtonTypes().setAll(shiftFrozen, shiftNew, cancel);
+
+                                    Optional<ButtonType> result = alert.showAndWait();
+                                    if (result.get() == shiftFrozen){
+                                        testPeakDim.setFrozen(false);
+                                        updateMe.add(testPeakDim);
+                                    } else if (result.get() == shiftNew) {
+                                        pickedShift = testPeakDim.getChemShift();
+                                    } else {
+                                        return;
+                                    }
+                                } else if (testPeakDim.getSampleLabel().equals(peakDim.getSampleLabel())) {
+                                    pickedShift = testPeakDim.getChemShift();
+                                    freezeMe = true;
+                                }
+                            }  else {
+                                updateMe.add(testPeakDim);
+                            }
+                        }
+
+                        for (PeakDim updatePeakDim : updateMe) {
+                            updatePeakDim.setChemShift(pickedShift);
+                            if (updatePeakDim.getSpectralDimObj() == peakDim.getSpectralDimObj()) {
+                                updatePeakDim.setLineWidthValue(peakDim.getLineWidthValue());
+                                updatePeakDim.setBoundsValue(peakDim.getBoundsValue());
+                            }
+                        }
+                        peakDim.setFrozen(freezeMe);
                     }
                 }
-
             }
+        }
+        List<Noe> noesToAdd = new ArrayList<>();
+        for (Map.Entry<ExpDim,AcqNode> picked : pickedSet.entrySet()) {
+            ExpDim expDim = picked.getKey();
+            Connectivity nextCon = expDim.getNextCon();
+            if (nextCon != null && nextCon.type == Connectivity.TYPE.NOE) {
+                AcqNode node1 = picked.getValue();
+                AcqNode node2 = pickedSet.get(expDim.getNextExpDim());
+                Atom atom1 = node1.getAtom();
+                Atom atom2 = node2.getAtom();
+                double noeFraction = acquisition.getSample().getAtomFraction(atom1) * acquisition.getSample().getAtomFraction(atom2);
+                if (noeFraction <= 0) {
+                    return;
+                }
+                if (!expDim.resPatMatches(atom1, atom2)) {
+                    return;
+                }
+                //todo: add ppm set support
+                if (!noeExists(list.noeSet,atom1,atom2)) {
+                    if (atom1.getResonance()==null) {
+                        atom1.setResonance((AtomResonance) Project.getActive().resFactory.build());
+                    }
+                    if (atom2.getResonance()==null) {
+                        atom2.setResonance((AtomResonance) Project.getActive().resFactory.build());
+                    }
+                    Noe noe = new Noe(peak, atom1.getSpatialSet(), atom2.getSpatialSet(), noeFraction, atom1.getResonance(), atom2.getResonance());
+                    //fixme: apportion intensity where multiple NOE dims
+                    noe.setIntensity(peak.getIntensity());
+                    noesToAdd.add(noe);
+                }
+            }
+        }
+        for (Noe noe: noesToAdd) {
+            if (list.getAddedNoe()==null) {
+                list.setAddedNoe(noe);
+            }
+        list.noeSet.add(noe);
         }
     }
 

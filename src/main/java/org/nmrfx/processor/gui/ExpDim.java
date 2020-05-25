@@ -29,7 +29,7 @@ public class ExpDim {
     private Connectivity previousCon;
     private Nuclei nucleus;
     private HashMap<Molecule, HashMap<Atom,String>> molAtomMap=new HashMap<>();
-    private static Pattern matchPattern = Pattern.compile("^(\\*|[A-z]*)(?:\\((\\*|[A-z])\\))?\\.([^,:]*)(?::([0-9\\.]*))?$");
+    public final static Pattern matchPattern = Pattern.compile("^(\\*|[A-z]+)(?:\\((\\*|[A-z])\\))?\\.([^,:.]+)(?::([0-9\\.]+))?$");
     private static Pattern codePattern = Pattern.compile("^([A-z]+)\\[(.)\\]\\((.*)\\)$");
     private static Pattern labelPattern = Pattern.compile("^([Fr])([0-9]+)([a-z]*)?$");
     private static HashMap<String, HashMap<String, ArrayList<String>>> resMap = new HashMap<>();

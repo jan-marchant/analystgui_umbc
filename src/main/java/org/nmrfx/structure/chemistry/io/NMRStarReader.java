@@ -786,7 +786,7 @@ public class NMRStarReader {
         ResonanceFactory resFactory = PeakDim.resFactory();
         for (PeakDim peakDim : peakDimsWithoutRes) {
             Resonance resonance = resFactory.build();
-            peakDim.setResonance(resonance);
+            //peakDim.setResonance(resonance);
             resonance.add(peakDim);
         }
     }
@@ -1152,12 +1152,12 @@ public class NMRStarReader {
         }
 
         //for portability
-        Experiment experiment=Experiment.find(experimentName);
+        Experiment experiment=Experiment.get(experimentName);
         if (experiment==null) {
             experiment=new Experiment(experimentName,experimentClass);
         } else if (!experiment.toCode().equals(experimentClass)) {
             Integer suffix=2;
-            while (experiment.find(experimentName+suffix.toString())!=null) {
+            while (experiment.get(experimentName+suffix.toString())!=null) {
                 suffix++;
             }
             experiment=new Experiment(experimentName+suffix,experimentClass);

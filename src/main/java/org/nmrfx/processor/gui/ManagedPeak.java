@@ -30,20 +30,10 @@ public class ManagedPeak extends Peak {
             PeakDim peakDim0=null;
             AtomResonance resonance=null;
             for (Noe noe : noes) {
-                if (noe.getResonance1().getAtom()==atoms.get(i)) {
-                    resonance=noe.getResonance1();
-                    for (PeakDim peakDim : noe.peak.getPeakDims()) {
-                        if (peakDim.getResonance()==resonance) {
-                            peakDim0=peakDim;
-                        }
-                    }
-                }
-                if (noe.getResonance2().getAtom()==atoms.get(i)) {
-                    resonance=noe.getResonance2();
-                    for (PeakDim peakDim : noe.peak.getPeakDims()) {
-                        if (peakDim.getResonance()==resonance) {
-                            peakDim0=peakDim;
-                        }
+                for (PeakDim peakDim : noe.peak.getPeakDims()) {
+                    if (((AtomResonance) peakDim.getResonance()).getAtom()==atoms.get(i)) {
+                        peakDim0=peakDim;
+                        resonance=(AtomResonance) peakDim.getResonance();
                     }
                 }
             }
@@ -65,12 +55,12 @@ public class ManagedPeak extends Peak {
             float width;
             switch (atoms.get(i).getElementName()) {
                 case "C":
-                    width= 0.15f;
-                    scale=3f;
+                    width= 0.4f;
+                    //scale=3f;
                     break;
                 case "N":
-                    width= 0.3f;
-                    scale=3f;
+                    width= 0.9f;
+                    //scale=3f;
                     break;
                 default:
                     width= 0.01f;

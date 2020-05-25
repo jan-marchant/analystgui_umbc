@@ -43,7 +43,7 @@ public class Condition {
     }
 
     public static void addNew () {
-        String base="Condition ";
+        String base="New Condition ";
         int suffix=1;
         while (Condition.get(base+suffix)!=null) {
             suffix++;

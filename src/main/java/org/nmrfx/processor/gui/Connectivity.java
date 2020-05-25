@@ -222,4 +222,16 @@ public class Connectivity {
     public String getNumBonds() {
         return numBonds;
     }
+
+    public void setMinTransfers(int minTransfers) {
+        this.minTransfers = minTransfers;
+    }
+
+    public void setMaxTransfers(int maxTransfers) {
+        this.maxTransfers = maxTransfers;
+    }
+
+    public void setNumBonds(String numBonds) {
+        this.numBonds = numBonds;
+    }
 }

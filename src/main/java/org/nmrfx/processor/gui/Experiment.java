@@ -6,7 +6,9 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import org.nmrfx.processor.operations.Exp;
+import org.nmrfx.project.Project;
 import org.nmrfx.project.UmbcProject;
+import org.nmrfx.utils.GUIUtils;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -89,7 +91,7 @@ public class Experiment {
         UmbcProject.experimentList.add(this);
     }
 
-    public static Experiment find(String name) {
+    public static Experiment get(String name) {
         for (Experiment experiment : UmbcProject.getActive().experimentList) {
             if (experiment.getName().equals(name)) {
                 return experiment;
@@ -145,12 +147,19 @@ public class Experiment {
         this.name.set(name);
     }
 
-    public void remove (boolean prompt) {
-
+    public void remove(boolean prompt) {
+        boolean delete=true;
+        if (prompt) {
+            delete = GUIUtils.affirm("Are you sure you want to delete? This cannot be undone.");
+        }
+        if (delete) {
+            UmbcProject.experimentList.remove(this);
+            writePar();
+        }
     }
 
     public static void addNew() {
-
+        ExperimentSetup experimentSetup = new ExperimentSetup();
     }
 
     public StringProperty nameProperty() {
@@ -243,29 +252,15 @@ public class Experiment {
         return size;
     }
 
-    public void writeStar3(FileWriter chan) throws IOException {
-    }
-
-    public static void writeAllStar3 (FileWriter chan) throws IOException {
-        //TODO: I can't find a star3 saveframe appropriate for "prototype" experiments
-        // so current strategy is to use spectral_peak_list experiment name (currently unused)
-        // to indicate the "experiment_lib" file to read from, while including a code
-        // which overrides (in case of local changes).
-        for (Experiment experiment : UmbcProject.getActive().experimentList) {
-            for (Acquisition acquisition : UmbcProject.getActive().acquisitionTable) {
-                if (acquisition.getExperiment()==experiment) {
-                    experiment.writeStar3(chan);
-                    break;
-                }
-            }
-        }
-    }
-
     public StringProperty descriptionProperty() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description.set(description);
+    }
+
+    public static void writePar() {
+        //write out to file
     }
 }

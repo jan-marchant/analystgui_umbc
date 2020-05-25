@@ -75,12 +75,12 @@ public class ExperimentListSceneController implements Initializable {
         TableColumn<Experiment, Number> dimCol = new TableColumn<>("nDim");
         dimCol.setCellValueFactory(cellData -> cellData.getValue().numObsDimsProperty());
         //dimCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"Experiment",UmbcProject.gExperimentList));
-        dimCol.setPrefWidth(200);
+        dimCol.setPrefWidth(50);
 
         TableColumn<Experiment, String> descCol = new TableColumn<>("Description");
         descCol.setCellValueFactory(cellData -> cellData.getValue().descriptionProperty());
         //dimCol.setCellFactory(ViewableComboBoxTableCell.getForCellFactory(Acquisition.class,"Experiment",UmbcProject.gExperimentList));
-        descCol.setPrefWidth(400);
+        descCol.setPrefWidth(600);
 
         //some kind of accordion to show the details of each dimension
 

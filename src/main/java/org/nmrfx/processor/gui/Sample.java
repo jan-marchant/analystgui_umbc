@@ -68,7 +68,7 @@ public class Sample implements Comparable<Sample> {
             GUIUtils.warn("Error", "Molecule must be set before adding samples");
             return;
         }
-        String base = "Sample ";
+        String base = "New Sample ";
         int suffix = 1;
         while (Sample.get(base + suffix) != null) {
             suffix++;

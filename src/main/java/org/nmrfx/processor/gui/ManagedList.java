@@ -8,7 +8,6 @@ import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
-import org.nmrfx.utils.GUIUtils;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -119,10 +118,7 @@ public class ManagedList extends PeakList {
 
     @Override
     public ManagedPeak addPeak(Peak pickedPeak) {
-        if (noeSet==null) {
-            GUIUtils.warn("Cannot add peak","Peak patterns are determined by sample and experiment type only.");
-            return null;
-        }
+
         //fixme: what about when getNewPeak called? need to be careful
 
         //TODO: repick from existing NOEs taking new detection limit into account
@@ -131,47 +127,22 @@ public class ManagedList extends PeakList {
         }
 
         pickedPeak.initPeakDimContribs();
-        /*
-        Boolean showPicker=false;
 
-        AtomResonance resonance;
-        for (PeakDim peakDim : pickedPeak.getPeakDims()) {
-            resonance=(AtomResonance) peakDim.getResonance();
-            if (resonance.getAtom()==null) {
-                showPicker=true;
-            }
-        }
-        //TODO: Check compatibility of Bruce's peak assigner - does it filter by labeling? I guess I filter next anyway?
-        //TODO: This should really only ask for NOE assignments - other dims are fixed by acquisition params.
-        if (showPicker) {
-            PeakAtomPicker peakAtomPicker = new PeakAtomPicker();
-            peakAtomPicker.create();
-            peakAtomPicker.showAndWait(300, 300, pickedPeak);
-            //peakpicker doAssign() only sets labels - possible fixme
-            for (PeakDim peakDim : pickedPeak.getPeakDims()) {
-                resonance=(AtomResonance) peakDim.getResonance();
-                Atom atom=acquisition.getSample().getMolecule().findAtom(peakDim.getLabel());
-                resonance.setAtom(atom);
-                atom.setResonance(resonance);
-            }
-        }
-        List<ManagedPeak> addedPeaks = acquisition.addNoes(this,pickedPeak);
-        */
-        PeakAtomPicker peakAtomPicker = new PeakAtomPicker();
-        //Use AcqNodeChooser with picked peak
         AcqNodeChooser chooser = new AcqNodeChooser(this,pickedPeak);
         chooser.create();
-        chooser.showAndWait(300,300);
+        chooser.showAndWaitAtMouse();
         List<ManagedPeak> addedPeaks=new ArrayList<>();
-        this.idLast--;
-        if (addedNoe!=null) {
-            addedPeaks.addAll(addNoeToList(addedNoe));
-        }
-        if (addedPeaks.size() > 0) {
-            addedNoe.setPeak(addedPeaks.get(addedPeaks.size() - 1));
-        } else {
-            System.out.println("Error adding NOE "+addedNoe);
-            noeSet.get().remove(addedNoe);
+
+        if (noeSet!=null) {
+            if (addedNoe != null) {
+                addedPeaks.addAll(addNoeToList(addedNoe));
+            }
+            if (addedPeaks.size() > 0) {
+                addedNoe.setPeak(addedPeaks.get(addedPeaks.size() - 1));
+            } else {
+                System.out.println("Error adding NOE " + addedNoe);
+                noeSet.get().remove(addedNoe);
+            }
         }
         for (PeakDim peakDim : pickedPeak.peakDims) {
             peakDim.remove();
@@ -184,6 +155,7 @@ public class ManagedList extends PeakList {
         addedNoe=null;
 
         if (addedPeaks.size()>0) {
+            this.idLast--;
             return addedPeaks.get(addedPeaks.size()-1);
         } else {
             //fixme: risk of idLast getting out of sync here - sometimes return value ignored

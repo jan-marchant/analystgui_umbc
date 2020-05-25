@@ -1,11 +1,16 @@
 package org.nmrfx.processor.gui;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.HPos;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -16,7 +21,9 @@ import org.nmrfx.processor.datasets.peaks.PeakList;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 import java.util.function.UnaryOperator;
 
 public class ManagedListSetup {
@@ -44,7 +51,7 @@ public class ManagedListSetup {
             GUIUtils.warn("Cannot add list", "You must define all acquisition parameters before adding any lists.");
         } else {
             create();
-            show(300,300);
+            show();
         }
     }
 
@@ -284,20 +291,45 @@ public class ManagedListSetup {
     }
 
 
-    public void show(double x, double y) {
+    public void show() {
+        Point p = MouseInfo.getPointerInfo().getLocation();
+        List<Screen> screens = Screen.getScreens();
 
-        double screenWidth = Screen.getPrimary().getBounds().getWidth();
-        if (x > (screenWidth / 2)) {
-            x = x - stage.getWidth() - xOffset;
-        } else {
-            x = x + 100;
-        }
-
-        y = y - stage.getHeight() / 2.0;
-
-        stage.setX(x);
-        stage.setY(y);
+        stage.setAlwaysOnTop(true);
+        stage.setResizable(false);
         stage.show();
+        Double x=null;
+        Double y=null;
+
+        if (p != null && screens != null) {
+            Rectangle2D screenBounds;
+            for (Screen screen : screens) {
+                screenBounds=screen.getVisualBounds();
+                if (screenBounds.contains(p.getX(),p.getY())) {
+                    x=p.getX()-stage.getWidth()/2;
+                    y=p.getY()-stage.getHeight()/2;
+                    if (x+stage.getWidth()>screenBounds.getMaxX()) {
+                        x=screenBounds.getMaxX()-stage.getWidth()-50;
+                    }
+                    if (x<screenBounds.getMinX()) {
+                        x=screenBounds.getMinX()+50;
+                    }
+                    if (y+stage.getHeight()>screenBounds.getMaxY()) {
+                        y=screenBounds.getMaxY()-stage.getHeight()-50;
+                    }
+                    if (y<screenBounds.getMinY()) {
+                        y=screenBounds.getMinY()+50;
+                    }
+                }
+            }
+        }
+        stage.centerOnScreen();
+        if (x!=null) {
+            stage.setX(x);
+        }
+        if (y!=null) {
+            stage.setY(y);
+        }
     }
 
 

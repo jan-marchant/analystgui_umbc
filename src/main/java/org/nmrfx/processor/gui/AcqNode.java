@@ -36,9 +36,25 @@ public class AcqNode {
         }
     }
 
+    public double getDeltaPPM (double ppm) {
+        double toReturn=1000;
+        for (double candidate : getPPMs()) {
+            if (Math.abs(candidate-ppm)<toReturn) {
+                toReturn=Math.abs(candidate-ppm);
+            }
+        }
+        return toReturn;
+    }
+
     public ArrayList<Double> getPPMs() {
         ArrayList<Double> ppms=new ArrayList<>();
-        ppms.add(atom.getPPM());
+        int i=0;
+        while (atom.getPPM(i)!=null) {
+            ppms.add(atom.getPPM(i++).getValue());
+        }
+        while (atom.getRefPPM(i)!=null) {
+            ppms.add(atom.getRefPPM(i++).getValue());
+        }
         for (ManagedList list : acqTree.getAcquisition().getManagedLists()){
             ppms.addAll(getPPMs(list));
         }
