@@ -1,26 +1,20 @@
 package org.nmrfx.processor.gui;
 
 import de.codecentric.centerdevice.MenuToolkit;
-import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ToolBar;
 import javafx.stage.Stage;
 import org.controlsfx.dialog.ExceptionDialog;
-import org.nmrfx.processor.datasets.Dataset;
-import org.nmrfx.processor.datasets.peaks.PeakLabeller;
-import org.nmrfx.processor.gui.spectra.KeyBindings;
-import org.nmrfx.project.GUIStructureProject;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.structure.chemistry.io.MoleculeIOException;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.Scanner;
 
 public class UMBCApp extends AnalystApp {
     public static AcquisitionListSceneController acquisitionListController;
@@ -49,24 +43,7 @@ public class UMBCApp extends AnalystApp {
     @Override
     public void start(Stage stage) throws Exception {
         super.start(stage);
-        //read in from experiment files
-        ClassLoader cl = ClassLoader.getSystemClassLoader();
-        InputStream istream = cl.getResourceAsStream("data/experiments");
-        Scanner inputStream = new Scanner(istream);
-        while (inputStream.hasNextLine()) {
-            String data = inputStream.nextLine();
-            if (!data.isEmpty()) {
-                String[] arrOfStr = data.split("=");
-                if (arrOfStr.length!=2) {
-                    System.out.println("Error reading experiment: "+data);
-                } else {
-                    String name=arrOfStr[0].trim();
-                    String code=arrOfStr[1].trim();
-                    new Experiment(name,code);
-                }
-            }
-        }
-        istream.close();
+        Experiment.readPar("data/experiments");
         NoeSet.addSet("default");
         interpreter.exec("exec(open('/Users/jan/soft/nmrfx/script').read())");
     }
@@ -86,9 +63,11 @@ public class UMBCApp extends AnalystApp {
         subProjectMenuItem.setOnAction(e -> showSubProjects(e));
         MenuItem noeSetMenuItem = new MenuItem("Show NoeSets");
         noeSetMenuItem.setOnAction(e -> showNoeSetup(e));
+        MenuItem atomBrowserMenuItem = new MenuItem("Show AtomBrowser");
+        atomBrowserMenuItem.setOnAction(e -> showAtomBrowser());
 
 
-        umbcMenu.getItems().addAll(acquisitionListMenuItem,sampleListMenuItem,conditionListMenuItem,experimentListMenuItem,noeSetMenuItem,subProjectMenuItem);
+        umbcMenu.getItems().addAll(acquisitionListMenuItem,sampleListMenuItem,conditionListMenuItem,experimentListMenuItem,noeSetMenuItem,subProjectMenuItem,atomBrowserMenuItem);
         myMenuBar.getMenus().addAll(umbcMenu);
         if (isMac()) {
             MenuToolkit tk = MenuToolkit.toolkit();
@@ -99,6 +78,25 @@ public class UMBCApp extends AnalystApp {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    @Override
+    public void showAtomBrowser() {
+            FXMLController controller = FXMLController.create();
+            ToolBar navBar = new ToolBar();
+            controller.getBottomBox().getChildren().add(navBar);
+            AtomBrowser newAtomBrowser = new AtomBrowser(controller, this::removeAtomBrowser);
+            newAtomBrowser.initToolbar(navBar);
+            controller.addTool(newAtomBrowser);
+    }
+
+    public void removeAtomBrowser(Object o) {
+            FXMLController controller = FXMLController.getActiveController();
+            AtomBrowser browser = ((AtomBrowser) controller.getTool(AtomBrowser.class));
+            if (browser!=null) {
+                controller.getBottomBox().getChildren().remove(browser.getToolBar());
+                controller.removeTool(AtomBrowser.class);
+            }
     }
 
     @FXML

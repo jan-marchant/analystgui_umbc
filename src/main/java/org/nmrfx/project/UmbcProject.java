@@ -2,10 +2,8 @@ package org.nmrfx.project;
 
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
-import javafx.scene.Node;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import org.nmrfx.processor.datasets.Dataset;
@@ -34,8 +32,26 @@ public class UmbcProject extends GUIStructureProject {
     public static ObservableList<Experiment> experimentList = FXCollections.observableArrayList();
 
     public HashMap<Project,HashMap<Entity,Entity>> entityMap = new HashMap<>();
+    public ObservableList<String> labelList = FXCollections.observableArrayList();
 
-
+    {
+        UmbcProject.gDatasetList.addListener((ListChangeListener.Change<? extends Dataset> c) -> {
+            Set<String> labelSet = new HashSet<>();
+            for (Dataset d : gDatasetList) {
+                for (int i=0;i<d.getNDim();i++) {
+                    labelSet.add(d.getLabel(i));
+                    if (!labelList.contains(d.getLabel(i))) {
+                        labelList.add(d.getLabel(i));
+                    }
+                }
+            }
+            for (String label : labelList) {
+                if (!labelSet.contains(label)) {
+                    labelList.remove(label);
+                }
+            }
+        });
+    }
     public UmbcProject(String name) {
         super(name);
         Bindings.bindContent(gAcquisitionTable,acquisitionTable);

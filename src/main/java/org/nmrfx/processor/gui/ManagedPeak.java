@@ -2,7 +2,9 @@ package org.nmrfx.processor.gui;
 
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
+import org.controlsfx.dialog.ExceptionDialog;
 import org.nmrfx.processor.datasets.Dataset;
+import org.nmrfx.processor.datasets.RegionData;
 import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.structure.chemistry.Atom;
 import org.nmrfx.structure.chemistry.PPMv;
@@ -10,6 +12,7 @@ import org.nmrfx.structure.chemistry.constraints.Noe;
 import org.nmrfx.structure.chemistry.constraints.NoeSet;
 import org.nmrfx.utils.GUIUtils;
 
+import java.io.IOException;
 import java.util.*;
 
 import static org.nmrfx.processor.datasets.peaks.PeakDim.resFactory;
@@ -52,6 +55,8 @@ public class ManagedPeak extends Peak {
             /*float width=(float) dataset.ptWidthToPPM(i,2);
             if (width<0.01f) {width=0.01f;}
             */
+            float width = ((ManagedList) peakList).getAcquisition().getDefaultPeakWidth(i);
+            /*
             float width;
             switch (atoms.get(i).getElementName()) {
                 case "C":
@@ -65,6 +70,7 @@ public class ManagedPeak extends Peak {
                 default:
                     width= 0.01f;
             }
+             */
 
 
             if (peakDim0!=null) {

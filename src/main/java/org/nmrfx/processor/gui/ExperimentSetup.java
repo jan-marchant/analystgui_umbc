@@ -158,7 +158,7 @@ public class ExperimentSetup {
                 connType.setPrefWidth(100);
                 validBind=validBind.and(connType.valueProperty().isNotNull());
                 bondStringField=new TextField();
-                bondStringField.setPromptText("Transfers");
+                bondStringField.setPromptText("Bonds");
                 bondStringField.visibleProperty().bind(connType.valueProperty().isEqualTo(Connectivity.TYPE.J));
                 bondStringField.styleProperty().bind(Bindings
                         .when(bondStringField.textProperty().isEmpty())
@@ -355,7 +355,6 @@ public class ExperimentSetup {
         } else {
             nameValid.set(true);
         }
-        System.out.println(allValid);
     }
     public void addExpDim(boolean first) {
         ExpDimSetup expDimSetup = new ExpDimSetup(first);
@@ -417,7 +416,7 @@ public class ExperimentSetup {
         for (ExpDimSetup expDimSetup : expDimSetups) {
             experiment.add(expDimSetup.getPair());
         }
-        Experiment.writePar();
+        Experiment.writePar("data/experiments");
         stage.close();
     }
 }

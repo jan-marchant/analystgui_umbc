@@ -8,11 +8,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
+import org.controlsfx.dialog.ExceptionDialog;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.datasets.Nuclei;
-import org.nmrfx.processor.datasets.peaks.AtomResonance;
-import org.nmrfx.processor.datasets.peaks.Peak;
-import org.nmrfx.processor.datasets.peaks.PeakDim;
+import org.nmrfx.processor.datasets.peaks.*;
 import org.nmrfx.processor.operations.Exp;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Atom;
@@ -40,11 +39,22 @@ public class Acquisition {
     private ListProperty<Experiment> validExperiments = new SimpleListProperty<>(validExperimentList);
     private Double sensitivity;
     private AcqTree acqTree;
+    private ArrayList<Float> defaultPeakWidths = new ArrayList<>();
+
+    public Float getDefaultPeakWidth(int i) {
+        if (defaultPeakWidths.size() < getDataset().getNDim()) {
+            updateDefaultPeakWidths();
+        }
+        return defaultPeakWidths.get(i);
+    }
 
     public Acquisition() {
         project=UmbcProject.getActive();
         project.acquisitionTable.add(this);
-        dataset.addListener((observableValue, oldValue, newValue) -> parseValidExperiments());
+        dataset.addListener((observableValue, oldValue, newValue) -> {
+            parseValidExperiments();
+            updateDefaultPeakWidths();
+        });
         UmbcProject.experimentList.addListener((ListChangeListener.Change<? extends Experiment> c) -> parseValidExperiments());
     }
 
@@ -341,6 +351,79 @@ public class Acquisition {
     public void writePeakConstraintLinksStar3(FileWriter chan) throws IOException {
         for (ManagedList managedList : getManagedLists()) {
             managedList.writePeakConstraintLinks(chan);
+        }
+    }
+
+    public void updateDefaultPeakWidths() {
+        Dataset theDataset=getDataset();
+        if (theDataset==null) {
+            defaultPeakWidths.clear();
+            return;
+        }
+        int nDim = getDataset().getNDim();
+        int[][] pt = new int[nDim][2];
+        int[] cpt = new int[nDim];
+        int[] dim = new int[nDim];
+        double[] width = new double[nDim];
+        for (int i = 0; i < nDim; i++) {
+            dim[i] = i;
+            pt[i][0] = 0;
+            pt[i][1] = theDataset.getSize(i)-1;
+            cpt[i] = (pt[i][0] + pt[i][1]) / 2;
+            width[i] = (double) Math.abs(pt[i][0] - pt[i][1]);
+        }
+        //RegionData rData;
+        double[] percentile = null;
+        try {
+            //rData = dataset.analyzeRegion(pt, cpt, width, dim);
+            percentile = theDataset.getPercentile(90.0, pt, dim);
+        } catch (IOException e) {
+            ExceptionDialog dialog = new ExceptionDialog(e);
+            dialog.showAndWait();
+        }
+
+        double value = theDataset.guessNoiseLevel() * 5.0;
+        if (percentile != null) {
+            if (value < percentile[0]) {
+                value = percentile[0];
+            }
+        }
+        //value is the result we would get for an auto level on the whole dataset.
+        //n.b. currently only picking positive peaks
+        PeakPickParameters peakPickPar = (new PeakPickParameters(theDataset, "temp_for_measure")).level(value).mode("appendregion");
+        for (int i = 0; i < nDim; i++) {
+            peakPickPar = peakPickPar.limit(i,pt[i][0],pt[i][1]);
+        }
+        PeakPicker picker = new PeakPicker(peakPickPar);
+        PeakList tempPeakList = null;
+        try {
+            tempPeakList = picker.peakPick();
+        } catch (IOException e) {
+            ExceptionDialog dialog = new ExceptionDialog(e);
+            dialog.showAndWait();
+        }
+        ArrayList<Float>[] widths = new ArrayList[nDim];
+        for (int j = 0; j < nDim; j++) {
+            widths[j]=new ArrayList<>();
+        }
+        if (tempPeakList != null) {
+            for (int i = 0; i < tempPeakList.peaks().size(); i++) {
+                Peak peak = tempPeakList.peaks().get(i);
+                for (int j = 0; j < nDim; j++) {
+                    widths[j].add(peak.getPeakDim(j).getLineWidthValue());
+                }
+            }
+        }
+        PeakList.remove("temp_for_measure");
+        //(approximate) median
+        for (int j = 0; j < nDim; j++) {
+            Collections.sort(widths[j]);
+            Float defaultWidth=widths[j].get(widths[j].size()/2);
+            try {
+                defaultPeakWidths.set(j,defaultWidth);
+            } catch ( IndexOutOfBoundsException e ) {
+                defaultPeakWidths.add(j,defaultWidth);
+            }
         }
     }
 }

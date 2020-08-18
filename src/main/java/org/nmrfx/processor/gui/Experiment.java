@@ -10,8 +10,7 @@ import org.nmrfx.project.Project;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.utils.GUIUtils;
 
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
 public class Experiment {
@@ -154,12 +153,12 @@ public class Experiment {
         }
         if (delete) {
             UmbcProject.experimentList.remove(this);
-            writePar();
+            writePar("data/experiments");
         }
     }
 
     public static void addNew() {
-        ExperimentSetup experimentSetup = new ExperimentSetup();
+        new ExperimentSetup();
     }
 
     public StringProperty nameProperty() {
@@ -260,7 +259,41 @@ public class Experiment {
         this.description.set(description);
     }
 
-    public static void writePar() {
-        //write out to file
+    //fixme: choose a better location - currently I think user changes will be lost when updating NMRFx
+    public static void writePar(String resourceName) {
+        ClassLoader cl = ClassLoader.getSystemClassLoader();
+
+        try (PrintStream pStream = new PrintStream(cl.getResource(resourceName).getPath())) {
+            for (Experiment experiment : UmbcProject.experimentList) {
+                pStream.printf("%s = %s\n", experiment.getName(),experiment.toCode());
+            }
+        } catch (IOException ioE) {
+            System.out.println("error " + ioE.getMessage());
+        }
+    }
+
+
+    public static void readPar(String resourceName) {
+        try {
+            ClassLoader cl = ClassLoader.getSystemClassLoader();
+            InputStream iStream = cl.getResourceAsStream(resourceName);
+            Scanner inputStream = new Scanner(iStream);
+            while (inputStream.hasNextLine()) {
+                String data = inputStream.nextLine();
+                if (!data.isEmpty()) {
+                    String[] arrOfStr = data.split("=");
+                    if (arrOfStr.length != 2) {
+                        System.out.println("Error reading experiment: " + data);
+                    } else {
+                        String name = arrOfStr[0].trim();
+                        String code = arrOfStr[1].trim();
+                        new Experiment(name, code);
+                    }
+                }
+            }
+            iStream.close();
+        } catch (IOException e) {
+            System.out.println("Couldn't read "+resourceName);
+        }
     }
 }
