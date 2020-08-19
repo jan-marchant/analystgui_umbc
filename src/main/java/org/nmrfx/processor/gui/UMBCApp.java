@@ -128,9 +128,12 @@ public class UMBCApp extends AnalystApp {
 
     @FXML
     private void showNoeSetup(ActionEvent event) {
-        if (noeSetController == null) {
-            noeSetController = new NoeSetup();
+        if (noeSetController!=null) {
+            noeSetController.getStage().close();
         }
+        //if (noeSetController == null) {
+            noeSetController = new NoeSetup();
+        //}
         if (noeSetController != null) {
             noeSetController.show(300,300);
             noeSetController.getStage().toFront();

@@ -6,6 +6,8 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import org.apache.commons.collections4.BidiMap;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.nmrfx.processor.datasets.Dataset;
 import org.nmrfx.processor.gui.*;
 import org.nmrfx.structure.chemistry.*;
@@ -31,27 +33,8 @@ public class UmbcProject extends GUIStructureProject {
     public static ObservableList<Condition> gConditionList = FXCollections.observableArrayList();
     public static ObservableList<Experiment> experimentList = FXCollections.observableArrayList();
 
-    public HashMap<Project,HashMap<Entity,Entity>> entityMap = new HashMap<>();
-    public ObservableList<String> labelList = FXCollections.observableArrayList();
+    public HashMap<Project, BidiMap<Entity,Entity>> entityMap = new HashMap<>();
 
-    {
-        UmbcProject.gDatasetList.addListener((ListChangeListener.Change<? extends Dataset> c) -> {
-            Set<String> labelSet = new HashSet<>();
-            for (Dataset d : gDatasetList) {
-                for (int i=0;i<d.getNDim();i++) {
-                    labelSet.add(d.getLabel(i));
-                    if (!labelList.contains(d.getLabel(i))) {
-                        labelList.add(d.getLabel(i));
-                    }
-                }
-            }
-            for (String label : labelList) {
-                if (!labelSet.contains(label)) {
-                    labelList.remove(label);
-                }
-            }
-        });
-    }
     public UmbcProject(String name) {
         super(name);
         Bindings.bindContent(gAcquisitionTable,acquisitionTable);
@@ -70,6 +53,15 @@ public class UmbcProject extends GUIStructureProject {
         return moleculeCouplingMap.get(molecule);
     }
 
+    public static Set<String> getLabelSet () {
+        Set<String> labelSet = new HashSet<>();
+        for (Dataset d : gDatasetList) {
+            for (int i=0;i<d.getNDim();i++) {
+                labelSet.add(d.getLabel(i));
+            }
+        }
+        return labelSet;
+    }
 
     /*public static NoeSet getNoeSet(Molecule molecule, Connectivity.NOETYPE noeType, int ppmSet) {
         String key=molecule.toString()+noeType.toString()+ppmSet;
@@ -132,6 +124,23 @@ public class UmbcProject extends GUIStructureProject {
         newProject.activeRDCSet = project.activeRDCSet;
         return newProject;
     }
+
+    @Override
+    public Dataset getDataset(String name) {
+        Dataset dataset = datasetMap.get(name);
+        if (dataset != null) {
+            return dataset;
+        } else {
+            for (UmbcProject subProj : subProjectList) {
+                dataset = subProj.getDataset(name);
+                if (dataset != null) {
+                    return dataset;
+                }
+            }
+        }
+        return null;
+    }
+
 
     public void writeSubProjectsStar3(FileWriter chan) throws IOException {
         if (subProjectList.size()<=0) {
@@ -216,7 +225,7 @@ public class UmbcProject extends GUIStructureProject {
         Path projPath=Paths.get(absolute);
         UmbcProject subProj=addSubProject(projectName,projPath);
         if (subProj!=null) {
-            HashMap<Entity, Entity> map = new HashMap<>();
+            BidiMap<Entity, Entity> map = new DualHashBidiMap<>();
             entityMap.put(subProj, map);
             for (int i = 0; i < activeEntities.size(); i++) {
                 map.put(activeMol.getEntitiesAndResidues(activeEntities.get(i)), subProj.activeMol.getEntitiesAndResidues(subEntities.get(i)));
@@ -268,7 +277,7 @@ public class UmbcProject extends GUIStructureProject {
 
     }
 
-    public List<Object> getSubProjMenus(SubProjectSceneController controller) {
+    public List<Object> getSubProjMenus(SubProjMenu controller) {
         List<Object> menus=new ArrayList<>();
         for (UmbcProject subProj : subProjectList) {
             if (subProj.subProjectList.size()>0) {

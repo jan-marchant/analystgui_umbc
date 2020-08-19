@@ -104,11 +104,12 @@ public class AtomBrowserSetup {
 
         xLabel = new ComboBox<>();
         //ObservableList<String> nucleiList=FXCollections.observableArrayList();
-        xLabel.setItems(UmbcProject.getActive().labelList);
+        ObservableList<String> labels = FXCollections.observableArrayList(UmbcProject.getLabelSet());
+        xLabel.setItems(labels);
 
         yLabel = new ComboBox<>();
         //ObservableList<String> nucleiList=FXCollections.observableArrayList();
-        yLabel.setItems(UmbcProject.getActive().labelList);
+        yLabel.setItems(labels);
 
         MenuButton atomFilter = new MenuButton("Atom filter");
 

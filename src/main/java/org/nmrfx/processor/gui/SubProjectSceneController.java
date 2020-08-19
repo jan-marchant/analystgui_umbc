@@ -15,6 +15,8 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.StringConverter;
+import org.apache.commons.collections4.BidiMap;
+import org.apache.commons.collections4.bidimap.DualHashBidiMap;
 import org.nmrfx.project.UmbcProject;
 import org.nmrfx.structure.chemistry.Entity;
 import org.nmrfx.structure.chemistry.Polymer;
@@ -26,7 +28,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class SubProjectSceneController {
+public class SubProjectSceneController implements SubProjMenu {
 
     double xOffset=50;
     private Stage stage;
@@ -158,7 +160,7 @@ public class SubProjectSceneController {
     }
 
     private void updateEntities() {
-        HashMap<Entity, Entity> map = UmbcProject.getActive().entityMap.get(subProject.get());
+        BidiMap<Entity, Entity> map = UmbcProject.getActive().entityMap.get(subProject.get());
         if (map==null) {
             setEntitesLinked(false);
             alignmentViewer.alignSW(combo1.getValue(), combo2.getValue());
@@ -192,8 +194,8 @@ public class SubProjectSceneController {
             if (!subEntity.getClass().equals(mainEntity.getClass())) {
                 GUIUtils.warn("Error","Entities are not of the same type");
             } else {
-                UmbcProject.getActive().entityMap.putIfAbsent(subProject.get(), new HashMap<>());
-                HashMap<Entity,Entity> map = UmbcProject.getActive().entityMap.get(subProject.get());
+                UmbcProject.getActive().entityMap.putIfAbsent(subProject.get(), new DualHashBidiMap<>());
+                BidiMap<Entity,Entity> map = UmbcProject.getActive().entityMap.get(subProject.get());
                 map.put(mainEntity, subEntity);
                 int subIndex=0;
                 int mainIndex=0;

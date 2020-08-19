@@ -29,6 +29,34 @@ public class ManagedPeak extends Peak {
         this.noes=noes;
 
         float scale=1f;
+
+        for (Noe noe : noes) {
+            if (noe.peak==null) {
+                for (int i = 0; i < nDim; i++) {
+                    AtomResonance resonance=null;
+                    if (resonance==null && atoms.get(i).getResonance()!=null) {
+                        resonance=atoms.get(i).getResonance();
+                    }
+                    if (resonance==null) {
+                        resonance = (AtomResonance) resFactory().build();
+                    }
+                    resonance.add(this.getPeakDim(i));
+                    this.getPeakDim(i).setLabel(atoms.get(i).getShortName());
+                    atoms.get(i).setResonance(resonance);
+
+                    PPMv ppm;
+                    ppm = atoms.get(i).getPPM(((ManagedList) getPeakList()).getPpmSet());
+                    if (ppm == null) {
+                        ppm = atoms.get(i).getRefPPM(((ManagedList) getPeakList()).getRPpmSet());
+                    }
+                    if (ppm != null) {
+                        this.getPeakDim(i).setChemShift((float) ppm.getValue());
+                        this.getPeakDim(i).setChemShiftErrorValue((float) ppm.getError());
+                    }
+                }
+                noe.setPeak(this);
+            }
+        }
         for (int i = 0; i < nDim; i++) {
             PeakDim peakDim0=null;
             AtomResonance resonance=null;

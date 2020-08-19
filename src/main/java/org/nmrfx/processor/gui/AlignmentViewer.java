@@ -6,6 +6,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import org.apache.commons.collections4.BidiMap;
 import org.nmrfx.structure.chemistry.Entity;
 import org.nmrfx.structure.chemistry.Polymer;
 import org.nmrfx.structure.chemistry.Residue;
@@ -83,12 +84,12 @@ public class AlignmentViewer extends TextArea {
         setFont(Font.font("Courier New", FontWeight.NORMAL, 16));
     }
 
-    public void alignFromMap(Entity polymer1, Entity polymer2, HashMap<Entity,Entity> map) {
+    public void alignFromMap(Entity polymer1, Entity polymer2, BidiMap<Entity,Entity> map) {
         if (!checkEntities(polymer1,polymer2)) {
             setText("");
             return;
         }
-        List<List<Integer>> lists=new ArrayList<List<Integer>>(2);
+        List<List<Integer>> lists= new ArrayList<>(2);
         List<Integer> list1=new ArrayList<>();
         List<Integer> list2=new ArrayList<>();
 
@@ -130,7 +131,7 @@ public class AlignmentViewer extends TextArea {
     }
 
     public void alignEntities() {
-        SmithWaterman aligner = new SmithWaterman(polymer1.getOneLetterCode(), polymer2.getOneLetterCode());
+        SmithWaterman aligner = new SmithWaterman(polymer1.getOneLetterCode(), polymer2.getOneLetterCode(),-20);
         aligner.buildMatrix();
         aligner.dumpH();
         aligner.processMatrix();

@@ -22,6 +22,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Callback;
 import javafx.util.StringConverter;
+import org.apache.commons.collections4.BidiMap;
 import org.controlsfx.control.textfield.AutoCompletionBinding;
 import org.controlsfx.control.textfield.TextFields;
 import org.nmrfx.graphicsio.GraphicsContextInterface;
@@ -58,6 +59,9 @@ public class AtomBrowser implements ControllerTool {
 
     int centerDim = 0;
     int rangeDim = 1;
+    CheckBox aspectCheckBox;
+    Slider aspectSlider;
+    Label aspectRatioValue;
     ObservableList<RangeItem> rangeItems = FXCollections.observableArrayList();
     ObservableList<FilterItem> filterList = FXCollections.observableArrayList();
     ComboBox<RangeItem> rangeSelector;
@@ -207,10 +211,46 @@ public class AtomBrowser implements ControllerTool {
         });
         //rangeSelector.setOnAction(b -> updateRange());
 
+        double initialAspect=1.0;
+        aspectCheckBox = new CheckBox("Aspect Ratio");
+        aspectSlider = new Slider();
+        aspectRatioValue= new Label(String.valueOf(initialAspect));
+        aspectCheckBox.selectedProperty().addListener(e -> updateAspectRatio());
+        aspectSlider.setMin(0.1);
+        aspectSlider.setMax(3.0);
+        aspectSlider.setValue(initialAspect);
+        aspectSlider.setBlockIncrement(0.01);
+        //aspectSlider.setOnMousePressed(e -> shiftState = e.isShiftDown());
+        aspectSlider.valueProperty().addListener(e -> updateAspectRatio());
+
+        aspectSlider.setPrefWidth(100);
+        aspectRatioValue.setMinWidth(35);
+        aspectRatioValue.setMaxWidth(35);
+        HBox hBox = new HBox(aspectSlider,aspectRatioValue);
+        VBox vBox4 = new VBox(aspectCheckBox,hBox);
+
+        addFiller(toolBar);
+        toolBar.getItems().add(vBox4);
+
         addRangeControl("Aro", 6.5, 8.2);
         rangeSelector.setValue(addRangeControl("H1'", 5.1, 6.2));
         addRangeControl("H2'", 3.8, 5.1);
         updateRange();
+
+
+    }
+
+    void updateAspectRatio () {
+        double aspectRatio = aspectSlider.getValue();
+        aspectRatioValue.setText(String.format("%.2f", aspectRatio));
+
+        if (aspectCheckBox.isSelected()) {
+            for (PolyChart applyChart : controller.charts) {
+                applyChart.chartProps.setAspect(aspectCheckBox.isSelected());
+                applyChart.chartProps.setAspectRatio(aspectRatio);
+                applyChart.refresh();
+            }
+        }
     }
 
     abstract class AtomSelector extends VBox {
@@ -364,7 +404,7 @@ public class AtomBrowser implements ControllerTool {
             currentAtom = atom;
             addDrawItems(atom, Project.getActive());
             for (UmbcProject subProject : UmbcProject.getActive().subProjectList) {
-                HashMap<Entity, Entity> map = UmbcProject.getActive().entityMap.get(subProject);
+                BidiMap<Entity, Entity> map = UmbcProject.getActive().entityMap.get(subProject);
                 if (map.containsKey(atom.getEntity())) {
                     Entity otherEntity = map.get(atom.getEntity());
                     for (Atom otherAtom : otherEntity.getAtoms()) {
@@ -587,7 +627,9 @@ public class AtomBrowser implements ControllerTool {
             }
         }
         controller.arrange(FractionCanvas.ORIENTATION.HORIZONTAL);
+        controller.showPeakSlider(false);
         drawLocateItems();
+        updateAspectRatio();
     }
 
     public class FilterItem {
