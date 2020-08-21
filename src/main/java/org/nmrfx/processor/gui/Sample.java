@@ -301,7 +301,7 @@ public class Sample implements Comparable<Sample> {
     private void updateLabelString() {
         String labels="";
         for (Entity entity : entityLabelString.keySet()) {
-            for (String group : entityLabelString.get(entity).split(" ")) {
+            for (String group : entityLabelString.get(entity).split(";| ")) {
                 labels += entity.getName() + ":" + group+" ";
             }
         }

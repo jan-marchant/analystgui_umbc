@@ -840,6 +840,7 @@ public class NMRStarReader {
     public void processSTAR3PeakList(Saveframe saveframe) throws ParseException {
         ResonanceFactory resFactory = PeakDim.resFactory();
         String listName = saveframe.getValue("_Spectral_peak_list", "Sf_framecode");
+        String ID = saveframe.getValue("_Spectral_peak_list", "ID");
         String sampleLabel = saveframe.getLabelValue("_Spectral_peak_list", "Sample_label");
         String sampleConditionLabel = saveframe.getOptionalValue("_Spectral_peak_list", "Sample_condition_list_label");
         String datasetName = saveframe.getLabelValue("_Spectral_peak_list", "Experiment_name");
@@ -861,7 +862,7 @@ public class NMRStarReader {
         }
         int nDim = NvUtil.toInt(nDimString);
 
-        PeakList peakList = new PeakList(listName, nDim);
+        PeakList peakList = new PeakList(listName, nDim,NvUtil.toInt(ID));
 
         int nSpectralDim = saveframe.loopCount("_Spectral_dim");
         if (nSpectralDim > nDim) {
@@ -1121,6 +1122,7 @@ public class NMRStarReader {
     public void processSTAR3ManagedList(Saveframe saveframe) throws ParseException {
         ResonanceFactory resFactory = PeakDim.resFactory();
         String listName = saveframe.getValue("_Spectral_peak_list", "Sf_framecode");
+        String ID = saveframe.getValue("_Spectral_peak_list", "ID");
         String sampleLabel = saveframe.getLabelValue("_Spectral_peak_list", "Sample_label").replace("^'", "").replace("'$","");;
         String sampleConditionLabel = saveframe.getOptionalValue("_Spectral_peak_list", "Sample_condition_list_label").replace("^'", "").replace("'$","");;
         String datasetName = saveframe.getLabelValue("_Spectral_peak_list", "Experiment_name");
@@ -1186,7 +1188,7 @@ public class NMRStarReader {
         acquisition.setSample(Sample.get(sampleLabel));
         acquisition.setCondition(Condition.get(sampleConditionLabel));
         acquisition.setExperiment(experiment);
-        ManagedList peakList=new ManagedList(listName,nDim,acquisition,dimMap);
+        ManagedList peakList=new ManagedList(listName,nDim,acquisition,dimMap,NvUtil.toInt(ID));
         acquisition.attachManagedList(peakList);
 
         peakList.setSampleLabel(sampleLabel);
@@ -1851,7 +1853,7 @@ public class NMRStarReader {
             String peakListIDStr = (String) peakListIDColumn.get(i);
             String peakID = (String) peakIDColumn.get(i);
             String constraintID = (String) constraintIDColumn.get(i);
-            if (!peakListIDStr.equals(lastPeakListIDStr)) {
+            /*if (!peakListIDStr.equals(lastPeakListIDStr)) {
                 if (peakListIDStr.equals(".")) {
                     if (peakList == null) {
                         peakList = new PeakList("gendist", 2);
@@ -1866,45 +1868,48 @@ public class NMRStarReader {
                 }
             }
             lastPeakListIDStr = peakListIDStr;
-            Peak peak = null;
-            if (peakList != null) {
-                if (peakID.equals(".")) {
-                    peakID = constraintID;
-                    int idNum = Integer.parseInt(peakID);
-                    while ((peak = peakList.getPeak(idNum)) == null) {
-                        peakList.addPeak();
-                    }
-                } else {
-                    int idNum = Integer.parseInt(peakID);
-                    peak = peakList.getPeakByID(idNum);
-                }
-                AtomResonanceFactory resFactory = (AtomResonanceFactory) PeakDim.resFactory();
-                Noe noe;
+
+             */
+            Peak peak;
+            if (peakListIDStr.equals(".") || peakID.equals(".")) {
+                peak=null;
+            } else {
                 try {
-                    AtomResonance resonance1 = (AtomResonance) resFactory.get(Long.parseLong(resIDStr[0]));
-                    AtomResonance resonance2 = (AtomResonance) resFactory.get(Long.parseLong(resIDStr[1]));
-                    noe = new Noe(peak, spSets[0], spSets[1], 1.0,resonance1,resonance2);
-                } catch (Exception e) {
-                    noe = new Noe(peak, spSets[0], spSets[1], 1.0);
+                    int peakListID = Integer.parseInt(peakListIDStr);
+                    peakList = PeakList.get(peakListID);
+                } catch (NumberFormatException nFE) {
+                    throw new ParseException("Invalid peak list id (not int) \"" + peakListIDStr + "\"");
                 }
-                noe.starID=Integer.parseInt(constraintID);
-                double upper = 1000000.0;
-                if (upperValue.equals(".")) {
-                    System.err.println("Upper value is a \".\" at line " + i);
-                } else {
-                    upper = Double.parseDouble(upperValue);
-                }
-                noe.setUpper(upper);
-                double lower = 1.8;
-                if (!lowerValue.equals(".")) {
-                    lower = Double.parseDouble(lowerValue);
-                }
-                noe.setLower(lower);
-                noe.setPpmError(1.0);
-                noe.setIntensity(Math.pow(upper, -6.0) * 10000.0);
-                noe.setVolume(Math.pow(upper, -6.0) * 10000.0);
-                noeSet.add(noe);
+                int idNum = Integer.parseInt(peakID);
+                peak=peakList.getPeak(idNum);
             }
+
+            AtomResonanceFactory resFactory = (AtomResonanceFactory) PeakDim.resFactory();
+            Noe noe;
+            try {
+                AtomResonance resonance1 = (AtomResonance) resFactory.get(Long.parseLong(resIDStr[0]));
+                AtomResonance resonance2 = (AtomResonance) resFactory.get(Long.parseLong(resIDStr[1]));
+                noe = new Noe(peak, spSets[0], spSets[1], 1.0,resonance1,resonance2);
+            } catch (Exception e) {
+                noe = new Noe(peak, spSets[0], spSets[1], 1.0);
+            }
+            noe.starID=Integer.parseInt(constraintID);
+            double upper = 1000000.0;
+            if (upperValue.equals(".")) {
+                System.err.println("Upper value is a \".\" at line " + i);
+            } else {
+                upper = Double.parseDouble(upperValue);
+            }
+            noe.setUpper(upper);
+            double lower = 1.8;
+            if (!lowerValue.equals(".")) {
+                lower = Double.parseDouble(lowerValue);
+            }
+            noe.setLower(lower);
+            noe.setPpmError(1.0);
+            noe.setIntensity(Math.pow(upper, -6.0) * 10000.0);
+            noe.setVolume(Math.pow(upper, -6.0) * 10000.0);
+            noeSet.add(noe);
         }
         noeSet.updateNPossible(null);
         noeSet.setCalibratable(false);

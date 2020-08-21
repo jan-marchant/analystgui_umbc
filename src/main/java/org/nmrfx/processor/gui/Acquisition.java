@@ -53,9 +53,12 @@ public class Acquisition {
         project.acquisitionTable.add(this);
         dataset.addListener((observableValue, oldValue, newValue) -> {
             parseValidExperiments();
-            updateDefaultPeakWidths();
         });
-        UmbcProject.experimentList.addListener((ListChangeListener.Change<? extends Experiment> c) -> parseValidExperiments());
+        UmbcProject.experimentList.addListener((ListChangeListener.Change<? extends Experiment> c) -> {
+            while (c.next()) {
+                updateValidExperiments(c.getAddedSubList());
+            }
+        });
     }
 
     private void parseValidExperiments() {
@@ -74,7 +77,7 @@ public class Acquisition {
         for (Experiment experiment : UmbcProject.experimentList) {
             ArrayList<Nuclei> experimentNuc = (ArrayList) nuclei.clone();
             if (experiment.getNumObsDims()==nDim) {
-                for (ExpDim expDim : experiment.expDims) {
+                for (ExpDim expDim : experiment.obsDims) {
                     experimentNuc.remove(expDim.getNucleus());
                 }
                 if (experimentNuc.isEmpty()) {
@@ -84,6 +87,32 @@ public class Acquisition {
         }
         if (!validExperimentList.contains(getExperiment())) {
             setExperiment(null);
+        }
+    }
+
+    private void updateValidExperiments(List<? extends Experiment> added) {
+        Dataset theDataset=getDataset();
+        //validExperimentList.clear();
+        if (theDataset==null) {
+            setExperiment(null);
+            return;
+        }
+        ArrayList<Nuclei> nuclei = new ArrayList<>();
+        int nDim = theDataset.getNDim();
+        for (int i=0;i<nDim;i++) {
+            nuclei.add(theDataset.getNucleus(i));
+        }
+
+        for (Experiment experiment : added) {
+            ArrayList<Nuclei> experimentNuc = (ArrayList) nuclei.clone();
+            if (experiment.getNumObsDims()==nDim) {
+                for (ExpDim expDim : experiment.obsDims) {
+                    experimentNuc.remove(expDim.getNucleus());
+                }
+                if (experimentNuc.isEmpty()) {
+                    validExperimentList.add(experiment);
+                }
+            }
         }
     }
 

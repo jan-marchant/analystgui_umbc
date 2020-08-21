@@ -398,10 +398,19 @@ public class AtomBrowser implements ControllerTool {
     }
 
     public void setAtom(Atom atom) {
-
+        LocateItem locateItem = new LocateItem(currentAtom);
+        if (locateItems.contains(locateItem)) {
+            locateItems.get(locateItems.indexOf(locateItem)).remove();
+            locateItems.remove(locateItem);
+        }
         drawItems.clear();
         if (atom!=null) {
             currentAtom = atom;
+            locateItem = new LocateItem(atom);
+            if (!locateItems.contains(locateItem)) {
+                locateItems.add(locateItem);
+                locateItem.add();
+            }
             addDrawItems(atom, Project.getActive());
             for (UmbcProject subProject : UmbcProject.getActive().subProjectList) {
                 BidiMap<Entity, Entity> map = UmbcProject.getActive().entityMap.get(subProject);
@@ -485,8 +494,11 @@ public class AtomBrowser implements ControllerTool {
                 datasetList.add(item.dataset);
                 List<PeakList> peakListList = new ArrayList<>();
                 peakListList.add(item.peakList);
-                                chart.updateDatasetObjects(datasetList);
+                chart.updateDatasetObjects(datasetList);
                 chart.updatePeakListObjects(peakListList);
+                for (PeakListAttributes peakListAttributes : chart.getPeakListAttributes()) {
+                    peakListAttributes.setLabelType("Label");
+                }
                 // fixme
 //                chart.getChildrenUnmodifiable().stream().filter((node) -> (node instanceof Label)).forEachOrdered((node) -> {
 //                    node.setOnMouseClicked(e -> System.out.println("Clicked node " + item.dataset.getName()));
@@ -545,7 +557,9 @@ public class AtomBrowser implements ControllerTool {
                     int finalN = n;
                     chart.getAxis(n).lowerBoundProperty().addListener(e -> {
                         for (PeakDim peakDim : item.dims.get(dataDim)) {
-                            peakDim.setChemShift((float) chart.getAxis(finalN).getLowerBound());
+                            if (!peakDim.isFrozen()) {
+                                peakDim.setChemShift((float) chart.getAxis(finalN).getLowerBound());
+                            }
                         }
                         if (!scheduled) {
                             service.schedule(() -> {
@@ -560,7 +574,9 @@ public class AtomBrowser implements ControllerTool {
                     });
                     chart.getAxis(n).upperBoundProperty().addListener(e -> {
                         for (PeakDim peakDim : item.dims.get(dataDim)) {
-                            peakDim.setChemShift((float) chart.getAxis(finalN).getUpperBound());
+                            if (!peakDim.isFrozen()) {
+                                peakDim.setChemShift((float) chart.getAxis(finalN).getUpperBound());
+                            }
                         }
                         if (!scheduled) {
                             service.schedule(() -> {
@@ -591,7 +607,7 @@ public class AtomBrowser implements ControllerTool {
                         ppm.set(newPpm);
                         dirty = true;
                     }
-                    /*
+
                     for (int n = 2; n < item.dataset.getNDim(); n++) {
                         int dataDim = datasetAttr.getDim(n);
                         Double newMin = item.getMinShift(dataDim);
@@ -605,7 +621,7 @@ public class AtomBrowser implements ControllerTool {
                             dirty=true;
                         }
                     }
-                     */
+
                     if (dirty && !scheduled) {
                         service.schedule(() -> {
                             Platform.runLater(() -> {

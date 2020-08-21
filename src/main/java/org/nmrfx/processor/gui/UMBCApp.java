@@ -45,7 +45,7 @@ public class UMBCApp extends AnalystApp {
         super.start(stage);
         Experiment.readPar("data/experiments");
         NoeSet.addSet("default");
-        interpreter.exec("exec(open('/Users/jan/soft/nmrfx/script').read())");
+        //interpreter.exec("exec(open('/Users/jan/soft/nmrfx/script').read())");
     }
     @Override
     MenuBar makeMenuBar(String appName) {

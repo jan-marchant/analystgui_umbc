@@ -31,7 +31,7 @@ public class ManagedPeak extends Peak {
         float scale=1f;
 
         for (Noe noe : noes) {
-            if (noe.peak==null) {
+            if (noe.peak==null || !PeakList.getLists().contains(noe.peak.peakList)) {
                 for (int i = 0; i < nDim; i++) {
                     AtomResonance resonance=null;
                     if (resonance==null && atoms.get(i).getResonance()!=null) {
@@ -39,6 +39,9 @@ public class ManagedPeak extends Peak {
                     }
                     if (resonance==null) {
                         resonance = (AtomResonance) resFactory().build();
+                    }
+                    if (resonance.getPeakDims().size()>0 && resonance.getPeakDims().get(0).isFrozen()) {
+                        this.getPeakDim(i).setFrozen(true);
                     }
                     resonance.add(this.getPeakDim(i));
                     this.getPeakDim(i).setLabel(atoms.get(i).getShortName());
@@ -73,6 +76,9 @@ public class ManagedPeak extends Peak {
             }
             if (resonance==null) {
                 resonance = (AtomResonance) resFactory().build();
+            }
+            if (resonance.getPeakDims().size()>0 && resonance.getPeakDims().get(0).isFrozen()) {
+                this.getPeakDim(i).setFrozen(true);
             }
             resonance.add(this.getPeakDim(i));
             this.getPeakDim(i).setLabel(atoms.get(i).getShortName());

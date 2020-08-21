@@ -182,6 +182,15 @@
                     </additionalClasspathElements>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>com.zenjava</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>8.8.3</version>
+                <configuration>
+                    <vendor>TEST</vendor>
+                    <mainClass>org.nmrfx.processor.gui.UMBCApp</mainClass>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

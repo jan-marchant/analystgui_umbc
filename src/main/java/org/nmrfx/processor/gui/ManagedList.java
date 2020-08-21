@@ -57,8 +57,8 @@ public class ManagedList extends PeakList {
 
     //Loading from star file
     // fixme: rPpmSet not set on reload
-    public ManagedList(String name,int nDim,Acquisition acquisition, HashMap<ExpDim,Integer> dimMap) {
-        super(name,nDim);
+    public ManagedList(String name,int nDim,Acquisition acquisition, HashMap<ExpDim,Integer> dimMap, int listNum) {
+        super(name,nDim,listNum);
         this.acquisition=acquisition;
         //fixme
         this.rPpmSet=0;

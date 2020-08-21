@@ -73,7 +73,7 @@ public class Experiment {
         setName(name);
         size=0;
         numObsDims.set(0);
-        UmbcProject.experimentList.add(this);
+        //UmbcProject.experimentList.add(this);
     }
 
     public Experiment(String name,String code){

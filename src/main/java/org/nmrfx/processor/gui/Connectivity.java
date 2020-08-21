@@ -154,9 +154,11 @@ public class Connectivity {
         Set<Atom> atoms=new HashSet<>();
 
         for (int transfers = minTransfers; transfers<= maxTransfers; transfers++) {
-            for (LinkedList<Atom> list : UmbcProject.getMoleculeCouplingList(mol).transferMap2.get(atom).get(transfers)) {
-                //fixme: some way to check on labeling of intermediates in TOCSY transfer path
-                atoms.add(list.getLast());
+            if (UmbcProject.getMoleculeCouplingList(mol).transferMap2.get(atom)!=null) {
+                for (LinkedList<Atom> list : UmbcProject.getMoleculeCouplingList(mol).transferMap2.get(atom).get(transfers)) {
+                    //fixme: some way to check on labeling of intermediates in TOCSY transfer path
+                    atoms.add(list.getLast());
+                }
             }
         }
 

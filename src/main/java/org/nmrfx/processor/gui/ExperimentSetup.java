@@ -28,6 +28,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.nmrfx.processor.datasets.Nuclei;
+import org.nmrfx.project.UmbcProject;
 
 import java.awt.*;
 import java.util.List;
@@ -416,6 +417,7 @@ public class ExperimentSetup {
         for (ExpDimSetup expDimSetup : expDimSetups) {
             experiment.add(expDimSetup.getPair());
         }
+        UmbcProject.experimentList.add(experiment);
         Experiment.writePar("data/experiments");
         stage.close();
     }
