@@ -81,7 +81,8 @@ public class AcqNodeChooser {
     }
 
     public void create() {
-        stage = new Stage(StageStyle.UTILITY);
+        //UTILITY causes crash in dmg
+        stage = new Stage(StageStyle.UNDECORATED);
         grid=new GridPane();
         Scene scene = new Scene(grid);
         stage.setScene(scene);

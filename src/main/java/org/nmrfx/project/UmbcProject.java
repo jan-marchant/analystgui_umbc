@@ -108,6 +108,9 @@ public class UmbcProject extends GUIStructureProject {
         project.molecules.clear();
         newProject.peakLists.putAll(project.peakLists);
         project.peakLists.clear();
+        for (Dataset dataset : project.datasets) {
+            newProject.datasets.add(dataset);
+        }
         for (String datasetName : project.datasetMap.keySet()) {
             newProject.datasetMap.put(datasetName,project.datasetMap.get(datasetName));
         }

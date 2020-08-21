@@ -320,6 +320,21 @@ public class NoeSetup implements SubProjMenu {
                         atom2.setResonance((AtomResonance) Project.getActive().resFactory.build());
                     }
                     Noe noe = new Noe(null, atom1.getSpatialSet(), atom2.getSpatialSet(), noe1.getScale(), atom1.getResonance(), atom2.getResonance());
+                    if (atom1.getPPM()==null) {
+                        if (noe1.getResonance1() != null && noe1.getResonance1().getPeakDims().get(0) != null) {
+                            if (noe1.getResonance1().getPeakDims().get(0).isFrozen()) {
+                                atom1.setPPM(noe1.getResonance1().getPeakDims().get(0).getAverageShift());
+                            }
+                        }
+                    }
+
+                    if (atom2.getPPM()==null) {
+                        if (noe1.getResonance2() != null && noe1.getResonance2().getPeakDims().get(0) != null) {
+                            if (noe1.getResonance2().getPeakDims().get(0).isFrozen()) {
+                                atom2.setPPM(noe1.getResonance2().getPeakDims().get(0).getAverageShift());
+                            }
+                        }
+                    }
                     noe.setIntensity(noe1.getIntensity());
                     noeSet.add(noe);
                 }
